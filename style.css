@@ -398,19 +398,18 @@ footer {
   margin-bottom: 10px;
 }
 
-/* FINAL AI button fix */
-a.chef-ai-button {
+/* FINAL AI BUTTON TEST */
+.chef-ai-button {
   position: fixed !important;
-  bottom: 22px !important;
-  right: 22px !important;
-  background: #8b1e1e !important;
-  color: #ffffff !important;
-  padding: 14px 20px !important;
-  border-radius: 999px !important;
-  text-decoration: none !important;
-  font-weight: bold !important;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.25) !important;
-  z-index: 99999999 !important;
+  top: 20px !important;
+  left: 20px !important;
+  right: auto !important;
+  bottom: auto !important;
+  background: red !important;
+  color: white !important;
+  padding: 25px !important;
+  font-size: 24px !important;
+  z-index: 999999999 !important;
   display: block !important;
   opacity: 1 !important;
   visibility: visible !important;
