@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ask Chef Maria AI</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Georgia, serif;
+      background: #f7f1ea;
+      color: #2b1b12;
+    }
+
+    .chat-page {
+      max-width: 850px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .chat-card {
+      background: white;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    }
+
+    h1 {
+      margin-top: 0;
+      color: #8b1e1e;
+    }
+
+    #messages {
+      min-height: 320px;
+      max-height: 520px;
+      overflow-y: auto;
+      border: 1px solid #e2d7cc;
+      border-radius: 14px;
+      padding: 16px;
+      background: #fffaf5;
+      margin-bottom: 16px;
+    }
+
+    .msg {
+      margin: 10px 0;
+      line-height: 1.5;
+    }
+
+    .user {
+      text-align: right;
+      color: #8b1e1e;
+      font-weight: bold;
+    }
+
+    .bot {
+      text-align: left;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    input {
+      flex: 1;
+      padding: 14px;
+      border-radius: 999px;
+      border: 1px solid #d8c8b8;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 14px 22px;
+      border: none;
+      border-radius: 999px;
+      background: #8b1e1e;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    a {
+      color: #8b1e1e;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="chat-page">
+    <p><a href="/">← Back to Chef Maria</a></p>
+
+    <div class="chat-card">
+      <h1>Ask Chef Maria AI</h1>
+
+      <p>
+        Ask about private dinners, catering, menus, cooking classes, dietary needs,
+        service areas, and event ideas.
+      </p>
+
+      <div id="messages">
+        <div class="msg bot">
+          <strong>Chef Maria AI:</strong> Ciao! How can I help you plan your Italian private dining experience?
+        </div>
+      </div>
+
+      <div class="input-row">
+        <input id="question" placeholder="Ask Chef Maria AI..." />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let chatHistory = [];
+
+    async function sendMessage() {
+      const input = document.getElementById("question");
+      const messages = document.getElementById("messages");
+      const question = input.value.trim();
+
+      if (!question) return;
+
+      messages.innerHTML += `<div class="msg user">You: ${question}</div>`;
+      input.value = "";
+
+      messages.innerHTML += `<div class="msg bot" id="thinking"><strong>Chef Maria AI:</strong> Thinking...</div>`;
+      messages.scrollTop = messages.scrollHeight;
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: question,
+            history: chatHistory
+          })
+        });
+
+        const data = await res.json();
+
+        document.getElementById("thinking").remove();
+
+        messages.innerHTML += `<div class="msg bot"><strong>Chef Maria AI:</strong> ${data.answer}</div>`;
+        messages.scrollTop = messages.scrollHeight;
+
+        chatHistory.push({ role: "user", content: question });
+        chatHistory.push({ role: "assistant", content: data.answer });
+        chatHistory = chatHistory.slice(-80);
+
+      } catch (err) {
+        document.getElementById("thinking").remove();
+        messages.innerHTML += `<div class="msg bot"><strong>Chef Maria AI:</strong> Sorry, I could not connect right now.</div>`;
+      }
+    }
+
+    document.getElementById("question").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
+</body>
+</html>
