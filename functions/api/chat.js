@@ -68,7 +68,7 @@ Booking detail order:
 3. city/location
 4. date
 5. time
-6. menu preference
+6. cuisine preference AND specific food/menu choices
 7. allergies or dietary restrictions
 8. name
 9. email
@@ -82,6 +82,11 @@ Warm, elegant, helpful, concise.
 
 Booking rules:
 - Ask for one missing booking detail at a time.
+- A cuisine name alone such as Italian, Mexican, Mediterranean, American, French, Spanish, or Greek is NOT a complete menu.
+- After the customer gives a cuisine preference, ask what actual food they would like.
+- Ask for specific menu selections such as appetizer, main course, sides, and dessert.
+- If the customer does not know what to choose, offer to help with menu suggestions.
+- Do not continue to allergies until the customer has provided specific food choices or explicitly says Chef Maria may choose/recommend the menu.
 - Do not sound robotic.
 - If the customer gives several details at once, acknowledge them and ask only for what is still missing.
 - For groups over 10 guests, explain that Chef Maria may recommend catering or additional service staff.
@@ -314,12 +319,24 @@ function extractBookingInfo(userMessage, history) {
   let menuPreference =
     findAnswerAfterPrompt(
       history,
-      /menu preference|type of cuisine|dishes in mind|menus stand out|mix and match|which menu|what menu|menu options/i
+      /menu preference|type of cuisine|dishes in mind|what dishes|food choices|menu selections|appetizer|main course|side dishes|dessert|menus stand out|mix and match|which menu|what menu|menu options/i
     );
 
   if (
     /^(show me|give me|what are|some options|show options)/i.test(
       menuPreference
+    )
+  ) {
+    menuPreference = "";
+  }
+
+  /*
+   * A cuisine by itself is not enough.
+   * We require actual dishes/menu choices before submission.
+   */
+  if (
+    /^(italian|mexican|mediterranean|american|french|spanish|greek|vegan|vegetarian)$/i.test(
+      menuPreference.trim()
     )
   ) {
     menuPreference = "";
