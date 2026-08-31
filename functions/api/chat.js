@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
     const bookingInfo = extractBookingInfo(userMessage, history);
 
     const isConfirmation =
-      /^(yes|yes please|correct|confirmed|confirm|looks good|that is correct|everything is correct|ok|okay|send it|submit)$/i.test(
+      /^(yes|yes please|yes everything is correct|correct|confirmed|confirm|looks good|that is correct|everything is correct|ok|okay|send it|submit|submit it|go ahead)$/i.test(
         userMessage.trim()
       );
 
@@ -44,7 +44,7 @@ export async function onRequestPost(context) {
       if (emailSent) {
         return jsonResponse({
           answer:
-            "Thank you! Your request has been sent to Chef Maria.\n\nChef Maria will confirm availability and final pricing shortly.\n\nPhone: 561-692-1473\nEmail: cucinadiverona@gmail.com"
+            "Thank you! Your request has been sent directly to Chef Maria.\n\nChef Maria will personally review availability and final pricing and contact you using the information you provided. This is an inquiry, not a confirmed booking yet.\n\nPhone: 561-692-1473\nEmail: cucinadiverona@gmail.com"
         });
       }
 
@@ -85,7 +85,10 @@ Booking rules:
 - Do not sound robotic.
 - If the customer gives several details at once, acknowledge them and ask only for what is still missing.
 - For groups over 10 guests, explain that Chef Maria may recommend catering or additional service staff.
-- Always say Chef Maria will confirm availability and final pricing.
+- Never say that YOU are checking availability.
+- Never say "I will check availability", "I will let you know", or "I will reach out later".
+- Never imply that you are doing work in the background.
+- After a request is actually submitted, Chef Maria will personally review availability and final pricing.
 - When all booking details are collected, summarize the details and ask the customer to confirm.
 - Do not say the booking is final until the customer confirms.
 - For final booking confirmations, always tell customers:
@@ -183,7 +186,7 @@ function extractBookingInfo(userMessage, history) {
   );
 
   const serviceMatch = allText.match(
-    /(private chef|catering|drop[-\s]?off|dinner|lunch|brunch|breakfast|party|event)/i
+    /(private chef|full[-\s]?service catering|catering|drop[-\s]?off(?: catering)?|cooking class)/i
   );
 
   const timeMatch = allText.match(
@@ -194,14 +197,18 @@ function extractBookingInfo(userMessage, history) {
     /(today|tomorrow|this saturday|this sunday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan\.?|feb\.?|mar\.?|apr\.?|may|jun\.?|jul\.?|aug\.?|sep\.?|oct\.?|nov\.?|dec\.?|january|february|march|april|june|july|august|september|october|november|december|\d{1,2}\/\d{1,2}\/?\d{0,4})/i
   );
 
-  const allergiesMatch = allText.match(
-    /(no allergies|no allergy|gluten[-\s]?free|celiac|dairy[-\s]?free|nut allergy|nuts allergy|vegetarian|vegan|kosher|halal|allergic to [^.]+)/i
-  );
+  const allergiesMatch =
+    allText.match(
+      /(?:allergies?(?:\s*\/\s*dietary restrictions)?|dietary restrictions?)\s*:\s*([^\n\r]+)/i
+    ) ||
+    allText.match(
+      /(no allergies|no allergy|none|gluten[-\s]?free|celiac|dairy[-\s]?free|nut allergy|nuts allergy|vegetarian|vegan|kosher|halal|allergic to [^.\n\r]+|chocolate)/i
+    );
 
   const nameMatch =
-    allText.match(/my name is\s+([A-Za-z\s]+)/i) ||
-    allText.match(/name:\s*([A-Za-z\s]+)/i) ||
-    allText.match(/I am\s+([A-Za-z\s]+)/i);
+    allText.match(/my name is\s+([A-Za-z][A-Za-z .'-]{0,100})/i) ||
+    allText.match(/name:\s*([A-Za-z][A-Za-z .'-]{0,100})/i) ||
+    allText.match(/I am\s+([A-Za-z][A-Za-z .'-]{0,100})/i);
 
   const menuPreference = findMenuPreference(allText);
 
@@ -212,7 +219,9 @@ function extractBookingInfo(userMessage, history) {
     date: dateMatch ? dateMatch[0] : "",
     time: timeMatch ? timeMatch[0] : "",
     menuPreference,
-    allergies: allergiesMatch ? allergiesMatch[0] : "",
+    allergies: allergiesMatch
+      ? (allergiesMatch[1] || allergiesMatch[0]).trim()
+      : "",
     name: nameMatch ? nameMatch[1].trim() : "",
     email: emailMatch ? emailMatch[0] : "",
     phone: phoneMatch ? phoneMatch[0] : ""
@@ -237,6 +246,14 @@ function extractBookingInfo(userMessage, history) {
 }
 
 function findMenuPreference(text) {
+  const labeledMenu = text.match(
+    /(?:menu preference|menu|cuisine)\s*:\s*([^\n\r]+)/i
+  );
+
+  if (labeledMenu) {
+    return labeledMenu[1].trim();
+  }
+
   const menuWords = [
     "bruschetta",
     "caprese",
@@ -254,6 +271,12 @@ function findMenuPreference(text) {
     "tiramisù",
     "cannoli",
     "italian",
+    "mexican",
+    "french",
+    "american",
+    "mediterranean",
+    "spanish",
+    "greek",
     "menu"
   ];
 
