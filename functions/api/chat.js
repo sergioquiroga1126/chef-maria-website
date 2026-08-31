@@ -89,7 +89,8 @@ Booking rules:
 - Never say "I will check availability", "I will let you know", or "I will reach out later".
 - Never imply that you are doing work in the background.
 - After a request is actually submitted, Chef Maria will personally review availability and final pricing.
-- When all booking details are collected, summarize the details and ask the customer to confirm.
+- When all booking details are collected, summarize the details and ask: "Please confirm that everything is correct so I can submit your inquiry to Chef Maria."
+- Never say "we'll proceed with the booking." Say "submit your inquiry" instead.
 - Do not say the booking is final until the customer confirms.
 - For final booking confirmations, always tell customers:
 
@@ -171,79 +172,296 @@ export async function onRequestOptions() {
   });
 }
 
+function findAnswerAfterPrompt(history, promptPattern) {
+  let answer = "";
+
+  for (let i = 0; i < history.length - 1; i++) {
+    const assistant = history[i];
+    const user = history[i + 1];
+
+    if (
+      assistant?.role === "assistant" &&
+      user?.role === "user" &&
+      promptPattern.test(assistant.content || "")
+    ) {
+      const value = (user.content || "").trim();
+
+      if (value) {
+        answer = value;
+      }
+    }
+  }
+
+  return answer;
+}
+
+
 function extractBookingInfo(userMessage, history) {
-  const allText = [
-    ...history.map((item) => item.content || ""),
+  const userMessages = history
+    .filter((item) => item.role === "user")
+    .map((item) => item.content || "");
+
+  const allUserText = [
+    ...userMessages,
     userMessage
   ].join("\n");
 
-  const guestsMatch = allText.match(/(\d+)\s*(people|guests|persons|adults|kids|children)?/i);
-  const emailMatch = allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  const phoneMatch = allText.match(/(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
 
-  const cityMatch = allText.match(
-    /(Miami|Fort Lauderdale|Boca Raton|Palm Beach|West Palm Beach|Broward|Deerfield Beach|Pompano Beach|Delray Beach|Hollywood|Aventura|Sunny Isles|Jupiter)/i
-  );
-
-  const serviceMatch = allText.match(
-    /(private chef|full[-\s]?service catering|catering|drop[-\s]?off(?: catering)?|cooking class)/i
-  );
-
-  const timeMatch = allText.match(
-    /\b(1[0-2]|0?[1-9])(:[0-5][0-9])?\s*(am|pm|AM|PM)\b/
-  );
-
-  const dateMatch = allText.match(
-    /(today|tomorrow|this saturday|this sunday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan\.?|feb\.?|mar\.?|apr\.?|may|jun\.?|jul\.?|aug\.?|sep\.?|oct\.?|nov\.?|dec\.?|january|february|march|april|june|july|august|september|october|november|december|\d{1,2}\/\d{1,2}\/?\d{0,4})/i
-  );
-
-  const allergiesMatch =
-    allText.match(
-      /(?:allergies?(?:\s*\/\s*dietary restrictions)?|dietary restrictions?)\s*:\s*([^\n\r]+)/i
-    ) ||
-    allText.match(
-      /(no allergies|no allergy|none|gluten[-\s]?free|celiac|dairy[-\s]?free|nut allergy|nuts allergy|vegetarian|vegan|kosher|halal|allergic to [^.\n\r]+|chocolate)/i
+  /*
+   * GUEST COUNT
+   */
+  const guestAnswer =
+    findAnswerAfterPrompt(
+      history,
+      /guest count|how many guests|number of guests|guests will be attending/i
     );
 
-  const nameMatch =
-    allText.match(/my name is\s+([A-Za-z][A-Za-z .'-]{0,100})/i) ||
-    allText.match(/name:\s*([A-Za-z][A-Za-z .'-]{0,100})/i) ||
-    allText.match(/I am\s+([A-Za-z][A-Za-z .'-]{0,100})/i);
+  const guestMatch =
+    guestAnswer.match(/\b(\d{1,3})\b/) ||
+    allUserText.match(
+      /\b(\d{1,3})\s*(?:people|guests|persons|adults|children|kids)\b/i
+    ) ||
+    allUserText.match(
+      /\b(?:party|group|event|dinner)\s+(?:for|of)\s+(\d{1,3})\b/i
+    );
 
-  const menuPreference = findMenuPreference(allText);
+
+  /*
+   * SERVICE TYPE
+   */
+  const serviceAnswer =
+    findAnswerAfterPrompt(
+      history,
+      /type of service|which service|service are you looking for/i
+    );
+
+  const serviceSource =
+    `${serviceAnswer}\n${allUserText}`;
+
+  const serviceMatch =
+    serviceSource.match(
+      /\b(private chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering)\b/i
+    );
+
+
+  /*
+   * LOCATION
+   */
+  const locationAnswer =
+    findAnswerAfterPrompt(
+      history,
+      /city or location|city\/location|where .*service|event location|south florida.*location/i
+    );
+
+  const locationSource =
+    `${locationAnswer}\n${allUserText}`;
+
+  const cityMatch =
+    locationSource.match(
+      /\b(Miami Beach|Miami|Maimi|Fort Lauderdale|Boca Raton|West Palm Beach|Palm Beach|Deerfield Beach|Pompano Beach|Delray Beach|Hollywood|Aventura|Sunny Isles|Jupiter|Broward)\b/i
+    );
+
+  let cityLocation =
+    cityMatch ? cityMatch[0] : "";
+
+  if (/^maimi$/i.test(cityLocation)) {
+    cityLocation = "Miami";
+  }
+
+
+  /*
+   * DATE
+   */
+  const dateAnswer =
+    findAnswerAfterPrompt(
+      history,
+      /provide the date|what date|date .*event|date you would like/i
+    );
+
+  const dateSource =
+    `${dateAnswer}\n${allUserText}`;
+
+  const dateMatch =
+    dateSource.match(
+      /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january\s+\d{1,2},?\s+\d{4}|february\s+\d{1,2},?\s+\d{4}|march\s+\d{1,2},?\s+\d{4}|april\s+\d{1,2},?\s+\d{4}|may\s+\d{1,2},?\s+\d{4}|june\s+\d{1,2},?\s+\d{4}|july\s+\d{1,2},?\s+\d{4}|august\s+\d{1,2},?\s+\d{4}|september\s+\d{1,2},?\s+\d{4}|october\s+\d{1,2},?\s+\d{4}|november\s+\d{1,2},?\s+\d{4}|december\s+\d{1,2},?\s+\d{4}/i
+    );
+
+
+  /*
+   * TIME
+   */
+  const timeAnswer =
+    findAnswerAfterPrompt(
+      history,
+      /what time|provide.*time|time .*start|service to start/i
+    );
+
+  const timeSource =
+    `${timeAnswer}\n${allUserText}`;
+
+  const timeMatch =
+    timeSource.match(
+      /\b(1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*(?:am|pm)\b/i
+    );
+
+
+  /*
+   * MENU
+   *
+   * This reads the customer's answer AFTER a menu question.
+   * It no longer relies only on a small list of cuisine words.
+   */
+  let menuPreference =
+    findAnswerAfterPrompt(
+      history,
+      /menu preference|type of cuisine|dishes in mind|menus stand out|mix and match|which menu|what menu|menu options/i
+    );
+
+  if (
+    /^(show me|give me|what are|some options|show options)/i.test(
+      menuPreference
+    )
+  ) {
+    menuPreference = "";
+  }
+
+
+  /*
+   * ALLERGIES / DIETARY RESTRICTIONS
+   *
+   * "no" now becomes "None".
+   */
+  let allergies =
+    findAnswerAfterPrompt(
+      history,
+      /allergies|dietary restrictions|dietary needs/i
+    );
+
+  if (
+    /^(no|none|nope|no allergies|no allergy|no restrictions|no dietary restrictions)$/i.test(
+      allergies.trim()
+    )
+  ) {
+    allergies = "None";
+  }
+
+
+  /*
+   * NAME
+   *
+   * This fixes:
+   *
+   * Bot: "Please provide your name"
+   * User: "keko derigor"
+   */
+  let name =
+    findAnswerAfterPrompt(
+      history,
+      /provide your name|your name\?|may i have your name|what is your name/i
+    );
+
+  if (!name) {
+    const nameDirect =
+      allUserText.match(
+        /my name is\s+([A-Za-z][A-Za-z .'-]{1,100})/i
+      );
+
+    if (nameDirect) {
+      name = nameDirect[1].trim();
+    }
+  }
+
+
+  /*
+   * EMAIL
+   */
+  const emailAnswer =
+    findAnswerAfterPrompt(
+      history,
+      /email address|provide your email|your email/i
+    );
+
+  const emailSource =
+    `${emailAnswer}\n${allUserText}`
+      .replace(/\\/g, "");
+
+  const emailMatch =
+    emailSource.match(
+      /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
+    );
+
+
+  /*
+   * PHONE
+   */
+  const phoneAnswer =
+    findAnswerAfterPrompt(
+      history,
+      /phone number|best phone|telephone|number to reach you/i
+    );
+
+  const phoneSource =
+    `${phoneAnswer}\n${allUserText}`;
+
+  const phoneMatch =
+    phoneSource.match(
+      /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/
+    );
+
 
   const info = {
-    guests: guestsMatch ? guestsMatch[1] : "",
-    serviceType: serviceMatch ? serviceMatch[0] : "",
-    cityLocation: cityMatch ? cityMatch[0] : "",
-    date: dateMatch ? dateMatch[0] : "",
-    time: timeMatch ? timeMatch[0] : "",
-    menuPreference,
-    allergies: allergiesMatch
-      ? (allergiesMatch[1] || allergiesMatch[0]).trim()
-      : "",
-    name: nameMatch ? nameMatch[1].trim() : "",
-    email: emailMatch ? emailMatch[0] : "",
-    phone: phoneMatch ? phoneMatch[0] : ""
+    guests:
+      guestMatch ? guestMatch[1] : "",
+
+    serviceType:
+      serviceMatch ? serviceMatch[0] : "",
+
+    cityLocation,
+
+    date:
+      dateMatch ? dateMatch[0] : "",
+
+    time:
+      timeMatch ? timeMatch[0] : "",
+
+    menuPreference:
+      menuPreference.trim(),
+
+    allergies:
+      allergies.trim(),
+
+    name:
+      name.trim(),
+
+    email:
+      emailMatch ? emailMatch[0] : "",
+
+    phone:
+      phoneMatch ? phoneMatch[0] : ""
   };
 
+
   const readyToSend =
-    info.guests &&
-    info.serviceType &&
-    info.cityLocation &&
-    info.date &&
-    info.time &&
-    info.menuPreference &&
-    info.allergies &&
-    info.name &&
-    info.email &&
-    info.phone;
+    Boolean(
+      info.guests &&
+      info.serviceType &&
+      info.cityLocation &&
+      info.date &&
+      info.time &&
+      info.menuPreference &&
+      info.allergies &&
+      info.name &&
+      info.email &&
+      info.phone
+    );
+
 
   return {
     ...info,
     readyToSend
   };
 }
+
 
 function findMenuPreference(text) {
   const labeledMenu = text.match(
