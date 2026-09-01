@@ -53,14 +53,18 @@ export async function onRequestPost(context) {
         /(?:^|\s)(1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*$/
       );
 
+    const currentMessageHasDate =
+      /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(userMessage);
+
     const ambiguousTime =
-      bareTimeReply ||
+      (wasAskedForTime && bareTimeReply) ||
       (
+        currentMessageHasDate &&
         combinedBareTimeMatch &&
         !/\b(am|pm)\b/i.test(userMessage)
       );
 
-    if (ambiguousTime && (wasAskedForTime || bookingInfo.date)) {
+    if (ambiguousTime) {
       const timeValue =
         bareTimeReply
           ? userMessage.trim()
@@ -156,6 +160,54 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
       });
     }
 
+    const asksSubmissionStatus =
+      /\b(did you send|did it send|was it sent|did you submit|was it submitted|did it go through|has it been sent)\b/i.test(
+        userMessage.trim()
+      );
+
+    if (asksSubmissionStatus) {
+      const previousSubmissionResult =
+        [...history]
+          .reverse()
+          .find(
+            (item) =>
+              item.role === "assistant" &&
+              (
+                /INQUIRY SENT SUCCESSFULLY/i.test(item.content || "") ||
+                /YOUR INQUIRY WAS NOT SENT/i.test(item.content || "")
+              )
+          );
+
+      if (
+        previousSubmissionResult &&
+        /INQUIRY SENT SUCCESSFULLY/i.test(
+          previousSubmissionResult.content || ""
+        )
+      ) {
+        return jsonResponse({
+          answer:
+            "Yes. Your inquiry was successfully emailed to Chef Maria."
+        });
+      }
+
+      if (
+        previousSubmissionResult &&
+        /YOUR INQUIRY WAS NOT SENT/i.test(
+          previousSubmissionResult.content || ""
+        )
+      ) {
+        return jsonResponse({
+          answer:
+            "No. Your inquiry was not sent successfully. Please try again or contact Chef Maria directly at 561-692-1473 or cucinadiverona@gmail.com."
+        });
+      }
+
+      return jsonResponse({
+        answer:
+          "I do not have confirmation that your inquiry was sent. It should only be considered sent after you see: INQUIRY SENT SUCCESSFULLY."
+      });
+    }
+
     const isConfirmation =
       /^(yes|yes please|yes everything is correct|correct|confirmed|confirm|looks good|that is correct|everything is correct|ok|okay|send it|submit|submit it|go ahead)$/i.test(
         userMessage.trim()
@@ -197,13 +249,13 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
       if (emailSent) {
         return jsonResponse({
           answer:
-            "Thank you! Your request has been sent directly to Chef Maria.\n\nChef Maria will personally review availability and final pricing and contact you using the information you provided. This is an inquiry, not a confirmed booking yet.\n\nPhone: 561-692-1473\nEmail: cucinadiverona@gmail.com"
+            "✓ INQUIRY SENT SUCCESSFULLY\n\nYour event information has been emailed directly to Chef Maria.\n\nChef Maria will personally review availability and final pricing and contact you using the email or phone number you provided.\n\nThis is an inquiry, not a confirmed booking yet.\n\nPhone: 561-692-1473\nEmail: cucinadiverona@gmail.com"
         });
       }
 
       return jsonResponse({
         answer:
-          "Your request is ready, but the email service is not connected yet. Please contact Chef Maria directly:\n\nPhone: 561-692-1473\nEmail: cucinadiverona@gmail.com"
+          "IMPORTANT: YOUR INQUIRY WAS NOT SENT.\n\nThe email submission did not complete successfully. Please try again or contact Chef Maria directly.\n\nPhone: 561-692-1473\nEmail: cucinadiverona@gmail.com"
       });
     }
 
@@ -343,10 +395,18 @@ function findAnswerAfterPrompt(history, promptPattern) {
     const assistant = history[i];
     const user = history[i + 1];
 
+    const assistantText = assistant?.content || "";
+
+    const isSummary =
+      /summary|details so far|final summary|complete summary|confirm that everything|confirm if everything/i.test(
+        assistantText
+      );
+
     if (
       assistant?.role === "assistant" &&
       user?.role === "user" &&
-      promptPattern.test(assistant.content || "")
+      !isSummary &&
+      promptPattern.test(assistantText)
     ) {
       const value = (user.content || "").trim();
 
@@ -387,6 +447,9 @@ function extractBookingInfo(userMessage, history) {
     ) ||
     allUserText.match(
       /\b(?:party|group|event|dinner)\s+(?:for|of)\s+(\d{1,3})\b/i
+    ) ||
+    allUserText.match(
+      /\b(?:book(?:ing)?\s+)?(?:a\s+)?party\s+(\d{1,3})\b/i
     );
 
 
@@ -404,15 +467,25 @@ function extractBookingInfo(userMessage, history) {
 
   let serviceType = "";
 
-  if (/^chef$/i.test(serviceAnswer.trim())) {
-    serviceType = "Private Chef";
-  } else {
-    const serviceMatch =
-      serviceSource.match(
-        /\b(private chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering)\b/i
-      );
+  const serviceMatch =
+    serviceSource.match(
+      /\b(private chef|chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering|cataring)\b/i
+    );
 
-    serviceType = serviceMatch ? serviceMatch[0] : "";
+  if (serviceMatch) {
+    const rawService = serviceMatch[0].toLowerCase();
+
+    if (rawService === "chef" || rawService === "private chef") {
+      serviceType = "Private Chef";
+    } else if (rawService === "catering" || rawService === "cataring") {
+      serviceType = "Catering";
+    } else if (/full[-\s]?service catering/i.test(rawService)) {
+      serviceType = "Full-Service Catering";
+    } else if (/drop[-\s]?off/i.test(rawService)) {
+      serviceType = "Drop-off Catering";
+    } else if (rawService === "cooking class") {
+      serviceType = "Cooking Class";
+    }
   }
 
 
@@ -522,7 +595,7 @@ function extractBookingInfo(userMessage, history) {
     );
 
   if (
-    /^(no+|nope+|none|nah|no allergies|no allergy|no restrictions|no dietary restrictions)$/i.test(
+    /^(no+|nope+|none|nah|npo|no allergies|no allergy|no restrictions|no dietary restrictions)$/i.test(
       allergies.trim()
     )
   ) {
@@ -553,6 +626,11 @@ function extractBookingInfo(userMessage, history) {
     if (nameDirect) {
       name = nameDirect[1].trim();
     }
+  }
+
+
+  if (name && /[,;|@]/.test(name)) {
+    name = name.split(/[,;|]/)[0].trim();
   }
 
 
