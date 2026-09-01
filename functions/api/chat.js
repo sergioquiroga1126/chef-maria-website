@@ -48,10 +48,27 @@ export async function onRequestPost(context) {
         userMessage.trim()
       );
 
-    if (wasAskedForTime && bareTimeReply) {
+    const combinedBareTimeMatch =
+      userMessage.trim().match(
+        /(?:^|\s)(1[0-2]|0?[1-9])(?::[0-5][0-9])?\s*$/
+      );
+
+    const ambiguousTime =
+      bareTimeReply ||
+      (
+        combinedBareTimeMatch &&
+        !/\b(am|pm)\b/i.test(userMessage)
+      );
+
+    if (ambiguousTime && (wasAskedForTime || bookingInfo.date)) {
+      const timeValue =
+        bareTimeReply
+          ? userMessage.trim()
+          : combinedBareTimeMatch[1];
+
       return jsonResponse({
         answer:
-          `Thanks! Is that ${userMessage.trim()} AM or ${userMessage.trim()} PM?`
+          `Thanks! Is that ${timeValue} AM or ${timeValue} PM?`
       });
     }
 
