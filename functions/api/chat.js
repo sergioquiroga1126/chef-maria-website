@@ -25,6 +25,83 @@ export async function onRequestPost(context) {
 
     const bookingInfo = extractBookingInfo(userMessage, history);
 
+    /*
+     * ENFORCE FOOD SELECTION
+     *
+     * A cuisine name alone is not a complete menu.
+     * Do this on the server so the AI cannot accidentally skip
+     * directly to allergies.
+     */
+    const lastAssistantMessage =
+      [...history]
+        .reverse()
+        .find((item) => item.role === "assistant")
+        ?.content || "";
+
+    const cuisineOnly =
+      /^(italian|mexican|mediterranean|american|french|spanish|greek|vegan|vegetarian)$/i.test(
+        userMessage.trim()
+      );
+
+    const wasAskedAboutMenu =
+      /menu preference|type of cuisine|cuisine|what.*food|what.*menu|dishes.*mind/i.test(
+        lastAssistantMessage
+      );
+
+    if (cuisineOnly && wasAskedAboutMenu) {
+      return jsonResponse({
+        answer:
+          `Great choice! ${userMessage.trim()} gives me the cuisine direction, but I still need your actual food selections before we continue.
+
+Here are Chef Maria's approved Italian menu options:
+
+APPETIZERS
+• Bruschetta al Pomodoro
+• Caprese Salad
+• Eggplant Parmigiana
+• Arancini
+• Italian Charcuterie Board
+• Mini Quiches
+• Focaccia
+
+PASTA & RISOTTO
+• Lasagna Bolognese
+• White Vegetable Lasagna
+• Tagliatelle Bolognese
+• Penne alla Vodka
+• Fresh Gnocchi
+• Spinach Gnocchi Gorgonzola
+• Risotto Shrimp & Zucchini
+• Mushroom Risotto
+• Orzotto with Peas & Speck
+
+MAIN COURSES
+• Chicken Marsala
+• Chicken Piccata
+• Chicken Milanese
+• Chicken Limone
+• Chicken Cacciatore
+• Branzino Mediterraneo
+• Short Ribs with Polenta
+• Salmon Mediterranean Style
+
+SIDES
+• Roasted Potatoes
+• Sautéed Spinach
+• Zucchini Trifolati
+• Broccoli au Gratin
+
+DESSERTS
+• Tiramisù
+• Mini Cannoli
+• Rustic Apple Cake
+• Semifreddo Amaretto
+• Mixed Berries with Zabaione
+
+Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help you build one.`
+      });
+    }
+
     const isConfirmation =
       /^(yes|yes please|yes everything is correct|correct|confirmed|confirm|looks good|that is correct|everything is correct|ok|okay|send it|submit|submit it|go ahead)$/i.test(
         userMessage.trim()
@@ -86,6 +163,12 @@ Booking rules:
 - After the customer gives a cuisine preference, ask what actual food they would like.
 - Ask for specific menu selections such as appetizer, main course, sides, and dessert.
 - If the customer does not know what to choose, offer to help with menu suggestions.
+- When recommending Italian dishes, use Chef Maria's approved menu rather than inventing dishes.
+- Approved appetizers: Bruschetta al Pomodoro, Caprese Salad, Eggplant Parmigiana, Arancini, Italian Charcuterie Board, Mini Quiches, Focaccia.
+- Approved pasta and risotto: Lasagna Bolognese, White Vegetable Lasagna, Tagliatelle Bolognese, Penne alla Vodka, Fresh Gnocchi, Spinach Gnocchi Gorgonzola, Risotto Shrimp & Zucchini, Mushroom Risotto, Orzotto with Peas & Speck.
+- Approved main courses: Chicken Marsala, Chicken Piccata, Chicken Milanese, Chicken Limone, Chicken Cacciatore, Branzino Mediterraneo, Short Ribs with Polenta, Salmon Mediterranean Style.
+- Approved sides: Roasted Potatoes, Sautéed Spinach, Zucchini Trifolati, Broccoli au Gratin.
+- Approved desserts: Tiramisù, Mini Cannoli, Rustic Apple Cake, Semifreddo Amaretto, Mixed Berries with Zabaione.
 - Do not continue to allergies until the customer has provided specific food choices or explicitly says Chef Maria may choose/recommend the menu.
 - Do not sound robotic.
 - If the customer gives several details at once, acknowledge them and ask only for what is still missing.
