@@ -38,20 +38,40 @@ export async function onRequestPost(context) {
         .find((item) => item.role === "assistant")
         ?.content || "";
 
-    const cuisineOnly =
-      /^(italian|mexican|mediterranean|american|french|spanish|greek|vegan|vegetarian)$/i.test(
-        userMessage.trim()
+    const cuisineMatch =
+      userMessage.match(
+        /\b(italian|mexican|mediterranean|american|french|spanish|greek|vegan|vegetarian)\b/i
       );
+
+    const cuisineMentioned = Boolean(cuisineMatch);
 
     const wasAskedAboutMenu =
       /menu preference|type of cuisine|cuisine|what.*food|what.*menu|dishes.*mind/i.test(
         lastAssistantMessage
       );
 
-    if (cuisineOnly && wasAskedAboutMenu) {
+    const bookingContextPresent =
+      Boolean(
+        bookingInfo.guests ||
+        bookingInfo.serviceType ||
+        bookingInfo.cityLocation ||
+        bookingInfo.date ||
+        bookingInfo.time
+      );
+
+    const specificDishMentioned =
+      /\b(bruschetta|caprese|eggplant parmigiana|arancini|charcuterie|focaccia|lasagna|tagliatelle|penne|gnocchi|risotto|orzotto|chicken marsala|chicken piccata|chicken milanese|chicken limone|chicken cacciatore|branzino|short ribs|salmon|roasted potatoes|spinach|zucchini|broccoli|tiramisu|tiramisù|cannoli|apple cake|semifreddo|zabaione)\b/i.test(
+        userMessage
+      );
+
+    if (
+      cuisineMentioned &&
+      (wasAskedAboutMenu || bookingContextPresent) &&
+      !specificDishMentioned
+    ) {
       return jsonResponse({
         answer:
-          `Great choice! ${userMessage.trim()} gives me the cuisine direction, but I still need your actual food selections before we continue.
+          `Great choice! ${cuisineMatch[1]} gives me the cuisine direction, but I still need your actual food selections before we continue.
 
 Here are Chef Maria's approved Italian menu options:
 
