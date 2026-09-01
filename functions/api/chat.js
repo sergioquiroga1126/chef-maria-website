@@ -38,6 +38,23 @@ export async function onRequestPost(context) {
         .find((item) => item.role === "assistant")
         ?.content || "";
 
+    const wasAskedForTime =
+      /what time|provide.*time|time .*start|service to begin|service to start/i.test(
+        lastAssistantMessage
+      );
+
+    const bareTimeReply =
+      /^(1[0-2]|0?[1-9])(?::[0-5][0-9])?$/.test(
+        userMessage.trim()
+      );
+
+    if (wasAskedForTime && bareTimeReply) {
+      return jsonResponse({
+        answer:
+          `Thanks! Is that ${userMessage.trim()} AM or ${userMessage.trim()} PM?`
+      });
+    }
+
     const cuisineMatch =
       userMessage.match(
         /\b(italian|mexican|mediterranean|american|french|spanish|greek|vegan|vegetarian)\b/i
@@ -126,6 +143,28 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
       /^(yes|yes please|yes everything is correct|correct|confirmed|confirm|looks good|that is correct|everything is correct|ok|okay|send it|submit|submit it|go ahead)$/i.test(
         userMessage.trim()
       );
+
+    if (isConfirmation && !bookingInfo.readyToSend) {
+      const missingFields = [
+        ["guest count", bookingInfo.guests],
+        ["service type", bookingInfo.serviceType],
+        ["location", bookingInfo.cityLocation],
+        ["date", bookingInfo.date],
+        ["time", bookingInfo.time],
+        ["menu selections", bookingInfo.menuPreference],
+        ["allergies or dietary restrictions", bookingInfo.allergies],
+        ["name", bookingInfo.name],
+        ["email", bookingInfo.email],
+        ["phone", bookingInfo.phone]
+      ]
+        .filter(([, value]) => !value)
+        .map(([label]) => label);
+
+      return jsonResponse({
+        answer:
+          `I’m not able to submit your inquiry yet because I’m still missing: ${missingFields.join(", ")}. Please provide the missing information first.`
+      });
+    }
 
     if (isConfirmation && bookingInfo.readyToSend) {
       let emailSent = false;
@@ -346,10 +385,18 @@ function extractBookingInfo(userMessage, history) {
   const serviceSource =
     `${serviceAnswer}\n${allUserText}`;
 
-  const serviceMatch =
-    serviceSource.match(
-      /\b(private chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering)\b/i
-    );
+  let serviceType = "";
+
+  if (/^chef$/i.test(serviceAnswer.trim())) {
+    serviceType = "Private Chef";
+  } else {
+    const serviceMatch =
+      serviceSource.match(
+        /\b(private chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering)\b/i
+      );
+
+    serviceType = serviceMatch ? serviceMatch[0] : "";
+  }
 
 
   /*
@@ -458,7 +505,7 @@ function extractBookingInfo(userMessage, history) {
     );
 
   if (
-    /^(no|none|nope|no allergies|no allergy|no restrictions|no dietary restrictions)$/i.test(
+    /^(no+|nope+|none|nah|no allergies|no allergy|no restrictions|no dietary restrictions)$/i.test(
       allergies.trim()
     )
   ) {
@@ -477,7 +524,7 @@ function extractBookingInfo(userMessage, history) {
   let name =
     findAnswerAfterPrompt(
       history,
-      /provide your name|your name\?|may i have your name|what is your name/i
+      /provide.*name|your name\?|may i have your name|what is your name/i
     );
 
   if (!name) {
@@ -533,8 +580,7 @@ function extractBookingInfo(userMessage, history) {
     guests:
       guestMatch ? guestMatch[1] : "",
 
-    serviceType:
-      serviceMatch ? serviceMatch[0] : "",
+    serviceType,
 
     cityLocation,
 
