@@ -69,9 +69,9 @@
     }
 
     .speaker {
-      display: block;
+      display: inline;
       font-weight: bold;
-      margin-bottom: 5px;
+      margin-right: 6px;
     }
 
     button:disabled {
@@ -155,7 +155,7 @@
       const speaker = document.createElement("span");
       speaker.className = "speaker";
       speaker.textContent =
-        role === "user" ? "You" : "Chef Maria AI";
+        role === "user" ? "You:" : "Chef Maria AI:";
 
       const content = document.createElement("span");
       content.textContent =
