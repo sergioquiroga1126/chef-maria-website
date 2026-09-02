@@ -401,7 +401,7 @@ function findAnswerAfterPrompt(history, promptPattern) {
     const assistantText = assistant?.content || "";
 
     const isSummary =
-      /summary|details so far|final summary|complete summary|confirm that everything|confirm if everything/i.test(
+      /summary|details so far|what we have so far|final summary|complete summary|confirm that everything|confirm if everything/i.test(
         assistantText
       );
 
@@ -583,6 +583,149 @@ function extractBookingInfo(userMessage, history) {
     )
   ) {
     menuPreference = "";
+  }
+
+
+  /*
+   * PRESERVE ACTUAL DISH SELECTIONS
+   *
+   * Handles:
+   * 1. Customer selects dishes directly.
+   * 2. Customer says "you choose" / "recommend a menu"
+   *    and Chef Maria AI recommends the dishes.
+   */
+  const approvedDishMatchers = [
+    ["Bruschetta al Pomodoro", /\bbruschetta(?: al pomodoro)?\b/i],
+    ["Caprese Salad", /\bcaprese(?: salad)?\b/i],
+    ["Eggplant Parmigiana", /\beggplant parmigiana\b/i],
+    ["Arancini", /\barancini\b/i],
+    ["Italian Charcuterie Board", /\bitalian charcuterie board\b/i],
+    ["Mini Quiches", /\bmini quiches?\b/i],
+    ["Focaccia", /\bfocaccia\b/i],
+
+    ["Lasagna Bolognese", /\blasagna bolognese\b/i],
+    ["White Vegetable Lasagna", /\bwhite vegetable lasagna\b/i],
+    ["Tagliatelle Bolognese", /\btagliatelle bolognese\b/i],
+    ["Penne alla Vodka", /\bpenne alla vodka\b/i],
+    ["Fresh Gnocchi", /\bfresh gnocchi\b/i],
+    ["Spinach Gnocchi Gorgonzola", /\bspinach gnocchi gorgonzola\b/i],
+    ["Risotto Shrimp & Zucchini", /\brisotto shrimp\s*(?:&|and)\s*zucchini\b/i],
+    ["Mushroom Risotto", /\bmushroom risotto\b/i],
+    ["Orzotto with Peas & Speck", /\borzotto with peas\s*(?:&|and)\s*speck\b/i],
+
+    ["Chicken Marsala", /\bchicken marsala\b/i],
+    ["Chicken Piccata", /\bchicken piccata\b/i],
+    ["Chicken Milanese", /\bchicken milanese\b/i],
+    ["Chicken Limone", /\bchicken limone\b/i],
+    ["Chicken Cacciatore", /\bchicken cacciatore\b/i],
+    ["Branzino Mediterraneo", /\bbranzino mediterraneo\b/i],
+    ["Short Ribs with Polenta", /\bshort ribs with polenta\b/i],
+    ["Salmon Mediterranean Style", /\bsalmon mediterranean style\b/i],
+
+    ["Roasted Potatoes", /\broasted potatoes\b/i],
+    ["Sautéed Spinach", /\b(?:sautéed|sauteed) spinach\b/i],
+    ["Zucchini Trifolati", /\bzucchini trifolati\b/i],
+    ["Broccoli au Gratin", /\bbroccoli au gratin\b/i],
+
+    ["Tiramisù", /\btiramis(?:u|ù)\b/i],
+    ["Mini Cannoli", /\bmini cannoli\b/i],
+    ["Rustic Apple Cake", /\brustic apple cake\b/i],
+    ["Semifreddo Amaretto", /\bsemifreddo amaretto\b/i],
+    ["Mixed Berries with Zabaione", /\bmixed berries with zabaione\b/i]
+  ];
+
+  // Dishes explicitly typed by the customer.
+  const customerSelectedDishes =
+    approvedDishMatchers
+      .filter(([, pattern]) => pattern.test(allUserText))
+      .map(([dish]) => dish);
+
+  /*
+   * Find a menu that Chef Maria AI recommended after the
+   * customer delegated the menu choice.
+   */
+  let recommendedMenuText = "";
+
+  for (let i = 0; i < history.length - 1; i++) {
+    const customer = history[i];
+    const assistant = history[i + 1];
+
+    if (
+      customer?.role === "user" &&
+      assistant?.role === "assistant" &&
+      /\b(you choose|choose for me|recommend a menu|recommend something|chef maria choose|surprise me)\b/i.test(
+        customer.content || ""
+      )
+    ) {
+      recommendedMenuText = assistant.content || "";
+    }
+  }
+
+  const recommendedDishes =
+    approvedDishMatchers
+      .filter(([, pattern]) => pattern.test(recommendedMenuText))
+      .map(([dish]) => dish);
+
+  if (customerSelectedDishes.length > 0) {
+    menuPreference =
+      customerSelectedDishes.join(", ");
+  } else if (recommendedDishes.length > 0) {
+    menuPreference =
+      recommendedDishes.join(", ");
+  }
+
+
+  /*
+   * Extract actual Chef Maria dishes from USER messages.
+   * This prevents an allergy reply from replacing the menu.
+   */
+  const approvedDishes = [
+    ["Bruschetta al Pomodoro", /\bbruschetta(?: al pomodoro)?\b/i],
+    ["Caprese Salad", /\bcaprese(?: salad)?\b/i],
+    ["Eggplant Parmigiana", /\beggplant parmigiana\b/i],
+    ["Arancini", /\barancini\b/i],
+    ["Italian Charcuterie Board", /\bitalian charcuterie board\b/i],
+    ["Mini Quiches", /\bmini quiches?\b/i],
+    ["Focaccia", /\b(?:focaccia|ocaccia)\b/i],
+
+    ["Lasagna Bolognese", /\blasagna bolognese\b/i],
+    ["White Vegetable Lasagna", /\bwhite vegetable lasagna\b/i],
+    ["Tagliatelle Bolognese", /\btagliatelle bolognese\b/i],
+    ["Penne alla Vodka", /\bpenne alla vodka\b/i],
+    ["Fresh Gnocchi", /\bfresh gnocchi\b/i],
+    ["Spinach Gnocchi Gorgonzola", /\bspinach gnocchi gorgonzola\b/i],
+    ["Risotto Shrimp & Zucchini", /\brisotto shrimp\s*(?:&|and)\s*zucchini\b/i],
+    ["Mushroom Risotto", /\bmushroom risotto\b/i],
+    ["Orzotto with Peas & Speck", /\borzotto with peas\s*(?:&|and)\s*speck\b/i],
+
+    ["Chicken Marsala", /\bchicken marsala\b/i],
+    ["Chicken Piccata", /\bchicken piccata\b/i],
+    ["Chicken Milanese", /\bchicken milanese\b/i],
+    ["Chicken Limone", /\bchicken limone\b/i],
+    ["Chicken Cacciatore", /\bchicken cacciatore\b/i],
+    ["Branzino Mediterraneo", /\bbranzino mediterraneo\b/i],
+    ["Short Ribs with Polenta", /\bshort ribs with polenta\b/i],
+    ["Salmon Mediterranean Style", /\bsalmon mediterranean style\b/i],
+
+    ["Roasted Potatoes", /\broasted potatoes\b/i],
+    ["Sautéed Spinach", /\b(?:sautéed|sauteed) spinach\b/i],
+    ["Zucchini Trifolati", /\bzucchini trifolati\b/i],
+    ["Broccoli au Gratin", /\bbroccoli au gratin\b/i],
+
+    ["Tiramisù", /\btiramis(?:u|ù)\b/i],
+    ["Mini Cannoli", /\bmini cannoli\b/i],
+    ["Rustic Apple Cake", /\brustic apple cake\b/i],
+    ["Semifreddo Amaretto", /\bsemifreddo amaretto\b/i],
+    ["Mixed Berries with Zabaione", /\bmixed berries with zabaione\b/i]
+  ];
+
+  const selectedDishes =
+    approvedDishes
+      .filter(([, pattern]) => pattern.test(allUserText))
+      .map(([name]) => name);
+
+  if (selectedDishes.length > 0) {
+    menuPreference = selectedDishes.join(", ");
   }
 
 
@@ -782,7 +925,7 @@ async function sendBookingEmail({ resendApiKey, chefEmail, bookingInfo }) {
     <p><strong>City / Location:</strong> ${bookingInfo.cityLocation || "Not provided"}</p>
     <p><strong>Date:</strong> ${bookingInfo.date || "Not provided"}</p>
     <p><strong>Time:</strong> ${bookingInfo.time || "Not provided"}</p>
-    <p><strong>Menu preference:</strong> ${bookingInfo.menuPreference || "Not provided"}</p>
+    <p><strong>Menu selections:</strong> ${bookingInfo.menuPreference || "Not provided"}</p>
     <p><strong>Allergies / Dietary restrictions:</strong> ${bookingInfo.allergies || "Not provided"}</p>
     <p><strong>Name:</strong> ${bookingInfo.name || "Not provided"}</p>
     <p><strong>Email:</strong> ${bookingInfo.email || "Not provided"}</p>
