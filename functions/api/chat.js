@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
       );
 
     const currentMessageHasDate =
-      /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(userMessage);
+      /\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/.test(userMessage);
 
     const ambiguousTime =
       (wasAskedForTime && bareTimeReply) ||
@@ -105,7 +105,8 @@ export async function onRequestPost(context) {
     if (
       cuisineMentioned &&
       (wasAskedAboutMenu || bookingContextPresent) &&
-      !specificDishMentioned
+      !specificDishMentioned &&
+      !/\b(you choose|help me choose|choose\s+for+\s+me|recommend(?: a menu| something)?|surprise me)\b/i.test(userMessage)
     ) {
       return jsonResponse({
         answer:
@@ -208,9 +209,16 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
       });
     }
 
+    const confirmationText =
+      userMessage
+        .toLowerCase()
+        .replace(/[^a-z\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
     const isConfirmation =
-      /^(yes|yes please|yes everything is correct|correct|confirmed|confirm|looks good|that is correct|everything is correct|ok|okay|send it|submit|submit it|go ahead)$/i.test(
-        userMessage.trim()
+      /^(yes|yes please|yeah|yep|sure|yes everything is correct|correct|confirmed|confirm|looks good|that is correct|everything is correct|ok|okay|send it|submit|submit it|go ahead)$/i.test(
+        confirmationText
       );
 
     if (isConfirmation && !bookingInfo.readyToSend) {
@@ -311,6 +319,7 @@ Booking rules:
 - When all booking details are collected, summarize the details and ask: "Please confirm that everything is correct so I can submit your inquiry to Chef Maria."
 - Never say "we'll proceed with the booking." Say "submit your inquiry" instead.
 - Do not say the booking is final until the customer confirms.
+- Never claim that an inquiry was submitted or emailed unless the server returns "INQUIRY SENT SUCCESSFULLY".
 - For final booking confirmations, always tell customers:
 
 Phone: 561-692-1473
@@ -531,7 +540,7 @@ function extractBookingInfo(userMessage, history) {
 
   const dateMatch =
     dateSource.match(
-      /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january\s+\d{1,2},?\s+\d{4}|february\s+\d{1,2},?\s+\d{4}|march\s+\d{1,2},?\s+\d{4}|april\s+\d{1,2},?\s+\d{4}|may\s+\d{1,2},?\s+\d{4}|june\s+\d{1,2},?\s+\d{4}|july\s+\d{1,2},?\s+\d{4}|august\s+\d{1,2},?\s+\d{4}|september\s+\d{1,2},?\s+\d{4}|october\s+\d{1,2},?\s+\d{4}|november\s+\d{1,2},?\s+\d{4}|december\s+\d{1,2},?\s+\d{4}/i
+      /\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january\s+\d{1,2},?\s+\d{4}|february\s+\d{1,2},?\s+\d{4}|march\s+\d{1,2},?\s+\d{4}|april\s+\d{1,2},?\s+\d{4}|may\s+\d{1,2},?\s+\d{4}|june\s+\d{1,2},?\s+\d{4}|july\s+\d{1,2},?\s+\d{4}|august\s+\d{1,2},?\s+\d{4}|september\s+\d{1,2},?\s+\d{4}|october\s+\d{1,2},?\s+\d{4}|november\s+\d{1,2},?\s+\d{4}|december\s+\d{1,2},?\s+\d{4}/i
     );
 
 
@@ -556,8 +565,8 @@ function extractBookingInfo(userMessage, history) {
   /*
    * MENU
    *
-   * This reads the customer's answer AFTER a menu question.
-   * It no longer relies only on a small list of cuisine words.
+   * Preserve dishes selected by the customer OR
+   * dishes recommended by Chef Maria AI.
    */
   let menuPreference =
     findAnswerAfterPrompt(
@@ -566,17 +575,13 @@ function extractBookingInfo(userMessage, history) {
     );
 
   if (
-    /^(show me|give me|what are|some options|show options)/i.test(
-      menuPreference
+    /^(show me|give me|what are|some options|show options)$/i.test(
+      menuPreference.trim()
     )
   ) {
     menuPreference = "";
   }
 
-  /*
-   * A cuisine by itself is not enough.
-   * We require actual dishes/menu choices before submission.
-   */
   if (
     /^(italian|mexican|mediterranean|american|french|spanish|greek|vegan|vegetarian)$/i.test(
       menuPreference.trim()
@@ -585,101 +590,7 @@ function extractBookingInfo(userMessage, history) {
     menuPreference = "";
   }
 
-
-  /*
-   * PRESERVE ACTUAL DISH SELECTIONS
-   *
-   * Handles:
-   * 1. Customer selects dishes directly.
-   * 2. Customer says "you choose" / "recommend a menu"
-   *    and Chef Maria AI recommends the dishes.
-   */
   const approvedDishMatchers = [
-    ["Bruschetta al Pomodoro", /\bbruschetta(?: al pomodoro)?\b/i],
-    ["Caprese Salad", /\bcaprese(?: salad)?\b/i],
-    ["Eggplant Parmigiana", /\beggplant parmigiana\b/i],
-    ["Arancini", /\barancini\b/i],
-    ["Italian Charcuterie Board", /\bitalian charcuterie board\b/i],
-    ["Mini Quiches", /\bmini quiches?\b/i],
-    ["Focaccia", /\bfocaccia\b/i],
-
-    ["Lasagna Bolognese", /\blasagna bolognese\b/i],
-    ["White Vegetable Lasagna", /\bwhite vegetable lasagna\b/i],
-    ["Tagliatelle Bolognese", /\btagliatelle bolognese\b/i],
-    ["Penne alla Vodka", /\bpenne alla vodka\b/i],
-    ["Fresh Gnocchi", /\bfresh gnocchi\b/i],
-    ["Spinach Gnocchi Gorgonzola", /\bspinach gnocchi gorgonzola\b/i],
-    ["Risotto Shrimp & Zucchini", /\brisotto shrimp\s*(?:&|and)\s*zucchini\b/i],
-    ["Mushroom Risotto", /\bmushroom risotto\b/i],
-    ["Orzotto with Peas & Speck", /\borzotto with peas\s*(?:&|and)\s*speck\b/i],
-
-    ["Chicken Marsala", /\bchicken marsala\b/i],
-    ["Chicken Piccata", /\bchicken piccata\b/i],
-    ["Chicken Milanese", /\bchicken milanese\b/i],
-    ["Chicken Limone", /\bchicken limone\b/i],
-    ["Chicken Cacciatore", /\bchicken cacciatore\b/i],
-    ["Branzino Mediterraneo", /\bbranzino mediterraneo\b/i],
-    ["Short Ribs with Polenta", /\bshort ribs with polenta\b/i],
-    ["Salmon Mediterranean Style", /\bsalmon mediterranean style\b/i],
-
-    ["Roasted Potatoes", /\broasted potatoes\b/i],
-    ["Sautéed Spinach", /\b(?:sautéed|sauteed) spinach\b/i],
-    ["Zucchini Trifolati", /\bzucchini trifolati\b/i],
-    ["Broccoli au Gratin", /\bbroccoli au gratin\b/i],
-
-    ["Tiramisù", /\btiramis(?:u|ù)\b/i],
-    ["Mini Cannoli", /\bmini cannoli\b/i],
-    ["Rustic Apple Cake", /\brustic apple cake\b/i],
-    ["Semifreddo Amaretto", /\bsemifreddo amaretto\b/i],
-    ["Mixed Berries with Zabaione", /\bmixed berries with zabaione\b/i]
-  ];
-
-  // Dishes explicitly typed by the customer.
-  const customerSelectedDishes =
-    approvedDishMatchers
-      .filter(([, pattern]) => pattern.test(allUserText))
-      .map(([dish]) => dish);
-
-  /*
-   * Find a menu that Chef Maria AI recommended after the
-   * customer delegated the menu choice.
-   */
-  let recommendedMenuText = "";
-
-  for (let i = 0; i < history.length - 1; i++) {
-    const customer = history[i];
-    const assistant = history[i + 1];
-
-    if (
-      customer?.role === "user" &&
-      assistant?.role === "assistant" &&
-      /\b(you choose|choose for me|recommend a menu|recommend something|chef maria choose|surprise me)\b/i.test(
-        customer.content || ""
-      )
-    ) {
-      recommendedMenuText = assistant.content || "";
-    }
-  }
-
-  const recommendedDishes =
-    approvedDishMatchers
-      .filter(([, pattern]) => pattern.test(recommendedMenuText))
-      .map(([dish]) => dish);
-
-  if (customerSelectedDishes.length > 0) {
-    menuPreference =
-      customerSelectedDishes.join(", ");
-  } else if (recommendedDishes.length > 0) {
-    menuPreference =
-      recommendedDishes.join(", ");
-  }
-
-
-  /*
-   * Extract actual Chef Maria dishes from USER messages.
-   * This prevents an allergy reply from replacing the menu.
-   */
-  const approvedDishes = [
     ["Bruschetta al Pomodoro", /\bbruschetta(?: al pomodoro)?\b/i],
     ["Caprese Salad", /\bcaprese(?: salad)?\b/i],
     ["Eggplant Parmigiana", /\beggplant parmigiana\b/i],
@@ -719,13 +630,52 @@ function extractBookingInfo(userMessage, history) {
     ["Mixed Berries with Zabaione", /\bmixed berries with zabaione\b/i]
   ];
 
-  const selectedDishes =
-    approvedDishes
+  const customerSelectedDishes =
+    approvedDishMatchers
       .filter(([, pattern]) => pattern.test(allUserText))
-      .map(([name]) => name);
+      .map(([dish]) => dish);
 
-  if (selectedDishes.length > 0) {
-    menuPreference = selectedDishes.join(", ");
+  /*
+   * If customer asked Chef Maria AI to choose,
+   * find the latest ACTUAL recommended menu.
+   *
+   * Ignore the giant master menu/options message.
+   */
+  let assistantSelectedDishes = [];
+
+  const assistantMessages =
+    history
+      .filter((item) => item.role === "assistant")
+      .map((item) => item.content || "");
+
+  for (let i = assistantMessages.length - 1; i >= 0; i--) {
+    const text = assistantMessages[i];
+
+    if (
+      /approved Italian menu options|Please choose the dishes you'd like/i.test(
+        text
+      )
+    ) {
+      continue;
+    }
+
+    const dishes =
+      approvedDishMatchers
+        .filter(([, pattern]) => pattern.test(text))
+        .map(([dish]) => dish);
+
+    if (dishes.length > 0) {
+      assistantSelectedDishes = dishes;
+      break;
+    }
+  }
+
+  if (customerSelectedDishes.length > 0) {
+    menuPreference =
+      customerSelectedDishes.join(", ");
+  } else if (assistantSelectedDishes.length > 0) {
+    menuPreference =
+      assistantSelectedDishes.join(", ");
   }
 
 
