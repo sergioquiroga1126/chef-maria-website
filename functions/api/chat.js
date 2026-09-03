@@ -719,6 +719,48 @@ function extractBookingInfo(userMessage, history) {
     break;
   }
 
+  /*
+   * If the bot just asked the customer to choose
+   * Full-Service Catering or Drop-off Catering,
+   * allow simple replies such as "1" or "2".
+   */
+  const lastAssistantForService =
+    [...history]
+      .reverse()
+      .find((item) => item.role === "assistant")
+      ?.content || "";
+
+  const choosingCateringFormat =
+    /full-service catering|full service catering/i.test(
+      lastAssistantForService
+    ) &&
+    /drop-off catering|drop off catering/i.test(
+      lastAssistantForService
+    );
+
+  if (choosingCateringFormat) {
+    const serviceChoice =
+      userMessage
+        .toLowerCase()
+        .trim();
+
+    if (
+      /^(1|full service|full-service|full service catering|full-service catering)$/.test(
+        serviceChoice
+      )
+    ) {
+      serviceType = "Full-Service Catering";
+    }
+
+    if (
+      /^(2|drop off|drop-off|drop off catering|drop-off catering)$/.test(
+        serviceChoice
+      )
+    ) {
+      serviceType = "Drop-off Catering";
+    }
+  }
+
 
   /*
    * LOCATION
