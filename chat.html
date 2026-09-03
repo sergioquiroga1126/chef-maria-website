@@ -119,6 +119,52 @@
       font-size: 14px;
     }
 
+    .summary-title {
+      margin: 4px 0 16px;
+      color: #8b1e1e;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .summary-grid {
+      border: 1px solid #eadfd5;
+      border-radius: 14px;
+      overflow: hidden;
+      background: white;
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      gap: 14px;
+      padding: 11px 14px;
+      border-bottom: 1px solid #eee4db;
+    }
+
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+
+    .summary-label {
+      font-weight: 700;
+      color: #6a4432;
+    }
+
+    .summary-value {
+      color: #2b1b12;
+      overflow-wrap: anywhere;
+    }
+
+    .summary-confirmation {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #f8eee5;
+      color: #54291f;
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
     .msg.success {
       width: 94%;
       max-width: 94%;
@@ -223,6 +269,11 @@
         max-width: 100%;
       }
 
+      .summary-row {
+        grid-template-columns: 1fr;
+        gap: 3px;
+      }
+
       .input-area {
         padding: 12px;
       }
@@ -279,6 +330,84 @@
         .trim();
     }
 
+    function renderBookingSummary(container, text) {
+      const lines = String(text || "")
+        .split(/\n+/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
+      const fields = [
+        "Guest Count",
+        "Service Type",
+        "City / Location",
+        "Date",
+        "Time",
+        "Cuisine Preference",
+        "Food / Menu Preferences",
+        "Allergies / Dietary Restrictions",
+        "Name",
+        "Email",
+        "Phone"
+      ];
+
+      const title = document.createElement("div");
+      title.className = "summary-title";
+      title.textContent = "Booking Inquiry Summary";
+      container.appendChild(title);
+
+      const grid = document.createElement("div");
+      grid.className = "summary-grid";
+
+      fields.forEach(label => {
+        const line = lines.find(item =>
+          item.toLowerCase().startsWith(
+            (label + ":").toLowerCase()
+          )
+        );
+
+        if (!line) return;
+
+        const value =
+          line.slice(label.length + 1).trim();
+
+        const row = document.createElement("div");
+        row.className = "summary-row";
+
+        const labelEl = document.createElement("div");
+        labelEl.className = "summary-label";
+        labelEl.textContent = label;
+
+        const valueEl = document.createElement("div");
+        valueEl.className = "summary-value";
+        valueEl.textContent = value;
+
+        row.appendChild(labelEl);
+        row.appendChild(valueEl);
+        grid.appendChild(row);
+      });
+
+      container.appendChild(grid);
+
+      const confirmationLines =
+        lines.filter(line =>
+          /^please confirm/i.test(line) ||
+          /^reply yes/i.test(line)
+        );
+
+      if (confirmationLines.length) {
+        const confirmation =
+          document.createElement("div");
+
+        confirmation.className =
+          "summary-confirmation";
+
+        confirmation.textContent =
+          confirmationLines.join(" ");
+
+        container.appendChild(confirmation);
+      }
+    }
+
     function addMessage(role, text, id = "") {
       const messages = document.getElementById("messages");
 
@@ -311,9 +440,14 @@
       speaker.textContent =
         role === "user" ? "You" : "Chef Maria AI";
 
-      const content = document.createElement("span");
+      const content = document.createElement("div");
       content.className = "msg-content";
-      content.textContent = cleanedText;
+
+      if (box.classList.contains("summary")) {
+        renderBookingSummary(content, cleanedText);
+      } else {
+        content.textContent = cleanedText;
+      }
 
       box.appendChild(speaker);
       box.appendChild(content);
