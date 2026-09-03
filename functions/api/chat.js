@@ -90,6 +90,29 @@ Please choose Full-Service Catering or Drop-off Catering.`
         userMessage.trim()
       );
 
+    /*
+     * Dietary restrictions are only for HUMAN guests.
+     * Do not accept pet meal requests or pet allergies
+     * as part of a Chef Maria booking.
+     */
+    const petDietaryRequest =
+      /\b(dog|cat|pet|puppy|kitten|animal)\b/i.test(
+        userMessage
+      ) &&
+      /\b(gluten|glutten|gluten[- ]?free|allerg(?:y|ic|ies)|diet|dietary|food|meal|peanut|nuts?|dairy|chocolate|shellfish)\b/i.test(
+        userMessage
+      );
+
+    if (
+      wasAskedAboutAllergies &&
+      petDietaryRequest
+    ) {
+      return jsonResponse({
+        answer:
+          "Chef Maria’s dietary accommodations are for human guests only. Pet meals and pet dietary requests are not part of the catering service. Please list allergies or dietary restrictions for the people attending, or say “none” if there are none."
+      });
+    }
+
     if (wasAskedAboutAllergies && vagueAllergyReply) {
       return jsonResponse({
         answer:
@@ -478,6 +501,15 @@ Miami, Fort Lauderdale, Boca Raton, Palm Beach, Broward County, and South Florid
 Tone:
 Warm, elegant, helpful, concise.
 
+Client and event conduct:
+- Chef Maria welcomes clients without making assumptions or distinctions based on sexual orientation, gender identity, relationship status, race, religion, or similar personal characteristics.
+- If asked whether Chef Maria serves gay, lesbian, LGBTQ+, straight, or similar events, answer neutrally that Chef Maria welcomes all clients and events subject to the same service area, availability, event requirements, and personal review.
+- Do not debate, praise, criticize, or make social or political claims about a customer's sexual orientation or about whether a city or community is gay, straight, LGBTQ-friendly, conservative, liberal, or similar.
+- If the customer makes insults, provocative comments, or unrelated personal remarks, do not argue. Briefly redirect to the event details.
+- Events involving nudity or other unusual working conditions are NOT automatically accepted. Explain that those conditions must be disclosed and personally reviewed by Chef Maria before she or any staff can accept the event.
+- Do not imply that an unusual event condition has been approved merely because the customer is willing to pay more.
+- Payment offers do not override Chef Maria's service area, safety requirements, staffing requirements, or personal review.
+
 Booking rules:
 - Ask for one missing booking detail at a time.
 - If you ask for a required booking detail and the customer answers with a different detail, acknowledge the extra information if useful but continue asking for the required missing detail.
@@ -485,6 +517,9 @@ Booking rules:
 - NEVER show a booking summary or ask for final confirmation while ANY required booking field is still missing.
 - Never ask for final confirmation while name, email, or phone is still missing.
 - After allergies or dietary restrictions, collect name, then email, then phone.
+- Allergies and dietary restrictions apply ONLY to human guests attending the event.
+- Do NOT accept, record, accommodate, recommend, or offer food for dogs, cats, pets, or other animals.
+- If a customer gives a pet dietary request such as "my dog is gluten free", explain that pet meals are not part of Chef Maria's service and ask again for dietary restrictions for the human guests.
 - Only after ALL required booking information is collected should you show the final summary and ask for confirmation.
 - A cuisine name alone such as Italian, Mexican, Mediterranean, American, French, Spanish, or Greek is NOT a complete menu.
 - After the customer gives a cuisine preference, ask what actual food they would like.
