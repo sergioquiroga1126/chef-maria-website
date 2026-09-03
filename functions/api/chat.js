@@ -135,6 +135,20 @@ Please choose Full-Service Catering or Drop-off Catering.`
       });
     }
 
+    /*
+     * If the assistant specifically asked for the event time,
+     * do not allow cuisine or another booking detail to skip it.
+     */
+    if (
+      wasAskedForTime &&
+      !bookingInfo.time
+    ) {
+      return jsonResponse({
+        answer:
+          "I still need the event time before we continue. Please provide a time with AM or PM, for example: 7 PM."
+      });
+    }
+
     const cuisineMatch =
       userMessage.match(
         /\b(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)\b/i
@@ -466,6 +480,9 @@ Warm, elegant, helpful, concise.
 
 Booking rules:
 - Ask for one missing booking detail at a time.
+- If you ask for a required booking detail and the customer answers with a different detail, acknowledge the extra information if useful but continue asking for the required missing detail.
+- If event time is missing, do NOT move to cuisine, menu, allergies, contact information, summary, or confirmation until a valid time with AM or PM has been collected.
+- NEVER show a booking summary or ask for final confirmation while ANY required booking field is still missing.
 - Never ask for final confirmation while name, email, or phone is still missing.
 - After allergies or dietary restrictions, collect name, then email, then phone.
 - Only after ALL required booking information is collected should you show the final summary and ask for confirmation.
@@ -545,10 +562,49 @@ Email: cucinadiverona@gmail.com`
 
     const aiData = await aiResponse.json();
 
+    const aiAnswer =
+      aiData.choices?.[0]?.message?.content ||
+      "How may I help you plan your Chef Maria experience?";
+
+    /*
+     * Final summaries are controlled by the server.
+     * Never allow the AI to show an incomplete summary.
+     */
+    const aiLooksLikeFinalSummary =
+      /summary of your inquiry|booking inquiry summary|here(?:'|’)?s a summary|here is a summary|please confirm that everything is correct/i.test(
+        aiAnswer
+      );
+
+    if (
+      aiLooksLikeFinalSummary &&
+      !bookingInfo.readyToSend
+    ) {
+      const missingFields = [
+        ["guest count", bookingInfo.guests],
+        ["service type", bookingInfo.serviceType],
+        ["location", bookingInfo.cityLocation],
+        ["date", bookingInfo.date],
+        ["time", bookingInfo.time],
+        ["menu selections", bookingInfo.menuPreference],
+        ["allergies or dietary restrictions", bookingInfo.allergies],
+        ["name", bookingInfo.name],
+        ["email", bookingInfo.email],
+        ["phone", bookingInfo.phone]
+      ]
+        .filter(([, value]) => !value)
+        .map(([label]) => label);
+
+      const firstMissing =
+        missingFields[0] || "booking information";
+
+      return jsonResponse({
+        answer:
+          `Before I can show the final booking summary, I still need: ${missingFields.join(", ")}. Let's continue with ${firstMissing}.`
+      });
+    }
+
     return jsonResponse({
-      answer:
-        aiData.choices?.[0]?.message?.content ||
-        "How may I help you plan your Chef Maria experience?"
+      answer: aiAnswer
     });
   } catch (error) {
     console.log("Chat error:", error);
