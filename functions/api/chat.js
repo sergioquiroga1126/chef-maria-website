@@ -25,6 +25,28 @@ export async function onRequestPost(context) {
 
     const bookingInfo = extractBookingInfo(userMessage, history);
 
+    const guestCount =
+      Number.parseInt(bookingInfo.guests || "0", 10);
+
+    if (
+      guestCount > 10 &&
+      bookingInfo.serviceType === "Private Chef"
+    ) {
+      return jsonResponse({
+        answer:
+          `For ${guestCount} guests, Chef Maria would not handle this as a standard private-chef dinner.
+
+For groups over 10 guests, Chef Maria uses a catering format and additional service staff may be required.
+
+Would you prefer:
+
+1. Full-Service Catering
+2. Drop-off Catering
+
+Chef Maria will personally review the final event setup.`
+      });
+    }
+
     /*
      * ENFORCE FOOD SELECTION
      *
@@ -37,6 +59,23 @@ export async function onRequestPost(context) {
         .reverse()
         .find((item) => item.role === "assistant")
         ?.content || "";
+
+    const wasAskedAboutAllergies =
+      /allergies|dietary restrictions|dietary needs/i.test(
+        lastAssistantMessage
+      );
+
+    const vagueAllergyReply =
+      /^(yes|yeah|yep|ok|okay|ok that's good|okay that's good|thats good|that's good|sounds good|looks good|great|perfect|fine|correct)$/i.test(
+        userMessage.trim()
+      );
+
+    if (wasAskedAboutAllergies && vagueAllergyReply) {
+      return jsonResponse({
+        answer:
+          "Before we continue, I need a clear answer for allergies or dietary restrictions. Please say “none” if there are none, or list any allergies or dietary needs."
+      });
+    }
 
     const wasAskedForTime =
       /what time|provide.*time|time .*start|service to begin|service to start/i.test(
@@ -78,10 +117,24 @@ export async function onRequestPost(context) {
 
     const cuisineMatch =
       userMessage.match(
-        /\b(italian|mexican|mediterranean|american|french|spanish|greek|vegan|vegetarian)\b/i
+        /\b(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)\b/i
       );
 
     const cuisineMentioned = Boolean(cuisineMatch);
+
+    let cuisineName = "";
+
+    if (cuisineMatch) {
+      const rawCuisine = cuisineMatch[1].toLowerCase();
+
+      if (/^mexic/.test(rawCuisine)) {
+        cuisineName = "Mexican";
+      } else {
+        cuisineName =
+          rawCuisine.charAt(0).toUpperCase() +
+          rawCuisine.slice(1);
+      }
+    }
 
     const wasAskedAboutMenu =
       /menu preference|type of cuisine|cuisine|what.*food|what.*menu|dishes.*mind/i.test(
@@ -96,6 +149,47 @@ export async function onRequestPost(context) {
         bookingInfo.date ||
         bookingInfo.time
       );
+
+    const nonItalianCuisineRequested =
+      cuisineMentioned &&
+      cuisineName &&
+      cuisineName !== "Italian";
+
+    if (
+      nonItalianCuisineRequested &&
+      (wasAskedAboutMenu || bookingContextPresent)
+    ) {
+      return jsonResponse({
+        answer:
+          `Great choice! ${cuisineName} cuisine sounds delicious. However, Chef Maria specializes in Italian cuisine, so this would be a special cuisine request.
+
+Chef Maria will need to personally review the request and decide whether she can accommodate it. I don't want to promise a menu she hasn't approved.
+
+If you have specific dishes in mind, please tell me what you'd like and I'll include them in your inquiry.
+
+If you'd rather leave the menu up to Chef Maria, just say "Chef Maria can decide."`
+      });
+    }
+
+    const specialCuisineReviewPrompt =
+      /special cuisine request|specializes in Italian cuisine|personally review the request/i.test(
+        lastAssistantMessage
+      );
+
+    const customerLeavesSpecialMenuToChef =
+      /\b(you choose|you decide|chef maria can decide|chef maria may decide|choose for me|surprise me|whatever chef maria recommends)\b/i.test(
+        userMessage
+      );
+
+    if (
+      specialCuisineReviewPrompt &&
+      customerLeavesSpecialMenuToChef
+    ) {
+      return jsonResponse({
+        answer:
+          "Absolutely. I'll record this as a special cuisine request for Chef Maria to personally review. I won't invent or promise a non-Italian menu on her behalf. Are there any allergies or dietary restrictions we should know about?"
+      });
+    }
 
     const specificDishMentioned =
       /\b(bruschetta|caprese|eggplant parmigiana|arancini|charcuterie|focaccia|lasagna|tagliatelle|penne|gnocchi|risotto|orzotto|chicken marsala|chicken piccata|chicken milanese|chicken limone|chicken cacciatore|branzino|short ribs|salmon|roasted potatoes|spinach|zucchini|broccoli|tiramisu|tiramisù|cannoli|apple cake|semifreddo|zabaione)\b/i.test(
@@ -301,7 +395,15 @@ Booking rules:
 - A cuisine name alone such as Italian, Mexican, Mediterranean, American, French, Spanish, or Greek is NOT a complete menu.
 - After the customer gives a cuisine preference, ask what actual food they would like.
 - Ask for specific menu selections such as appetizer, main course, sides, and dessert.
-- If the customer does not know what to choose, offer to help with menu suggestions.
+- Chef Maria specializes in ITALIAN cuisine.
+- Italian cuisine is Chef Maria's standard cuisine.
+- If a customer requests Mexican, French, Spanish, Greek, Japanese, Thai, Indian, Chinese, Caribbean, Mediterranean, American, or another non-Italian cuisine, DO NOT say Chef Maria offers or accepts it automatically.
+- For any non-Italian cuisine request, explain warmly that Chef Maria specializes in Italian cuisine and that Chef Maria must personally review the special request before deciding whether she can accommodate it.
+- Never invent, recommend, or promise a non-Italian menu on Chef Maria's behalf.
+- If a customer provides specific non-Italian dishes, preserve those exact requests in the inquiry for Chef Maria to review.
+- If a customer says "you choose" for a non-Italian request, do NOT create a menu. Record that Chef Maria should decide whether she can accommodate the cuisine and, if so, choose the menu.
+- In the final summary, clearly label non-Italian cuisine as "SPECIAL CUISINE REQUEST - PENDING CHEF MARIA REVIEW."
+- If the customer does not know what to choose for an ITALIAN menu, offer Chef Maria's approved Italian suggestions.
 - When recommending Italian dishes, use Chef Maria's approved menu rather than inventing dishes.
 - Approved appetizers: Bruschetta al Pomodoro, Caprese Salad, Eggplant Parmigiana, Arancini, Italian Charcuterie Board, Mini Quiches, Focaccia.
 - Approved pasta and risotto: Lasagna Bolognese, White Vegetable Lasagna, Tagliatelle Bolognese, Penne alla Vodka, Fresh Gnocchi, Spinach Gnocchi Gorgonzola, Risotto Shrimp & Zucchini, Mushroom Risotto, Orzotto with Peas & Speck.
@@ -311,7 +413,11 @@ Booking rules:
 - Do not continue to allergies until the customer has provided specific food choices or explicitly says Chef Maria may choose/recommend the menu.
 - Do not sound robotic.
 - If the customer gives several details at once, acknowledge them and ask only for what is still missing.
-- For groups over 10 guests, explain that Chef Maria may recommend catering or additional service staff.
+- Standard private-chef service is for up to 10 guests.
+- For more than 10 guests, do NOT accept the event as a standard private-chef booking.
+- Explain that the event requires a catering format and may require additional service staff.
+- Ask whether the customer prefers Full-Service Catering or Drop-off Catering.
+- Chef Maria will personally review the final event setup.
 - Never say that YOU are checking availability.
 - Never say "I will check availability", "I will let you know", or "I will reach out later".
 - Never imply that you are doing work in the background.
@@ -442,6 +548,32 @@ function extractBookingInfo(userMessage, history) {
     userMessage
   ].join("\n");
 
+  const cuisineMatch =
+    allUserText.match(
+      /\b(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)\b/i
+    );
+
+  let cuisinePreference = "";
+
+  if (cuisineMatch) {
+    const rawCuisine =
+      cuisineMatch[1].toLowerCase();
+
+    if (/^mexic/.test(rawCuisine)) {
+      cuisinePreference = "Mexican";
+    } else {
+      cuisinePreference =
+        rawCuisine.charAt(0).toUpperCase() +
+        rawCuisine.slice(1);
+    }
+  }
+
+  const specialCuisineReview =
+    Boolean(
+      cuisinePreference &&
+      cuisinePreference !== "Italian"
+    );
+
 
   /*
    * GUEST COUNT
@@ -474,18 +606,26 @@ function extractBookingInfo(userMessage, history) {
       /type of service|which service|service are you looking for/i
     );
 
-  const serviceSource =
-    `${serviceAnswer}\n${allUserText}`;
-
   let serviceType = "";
 
-  const serviceMatch =
-    serviceSource.match(
-      /\b(private chef|chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering|cataring)\b/i
-    );
+  const servicePattern =
+    /\b(private chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering|cataring|chef)\b/gi;
 
-  if (serviceMatch) {
-    const rawService = serviceMatch[0].toLowerCase();
+  const serviceCandidates = [
+    ...userMessages,
+    userMessage
+  ];
+
+  for (let i = serviceCandidates.length - 1; i >= 0; i--) {
+    const text = serviceCandidates[i] || "";
+    const matches = [...text.matchAll(servicePattern)];
+
+    if (!matches.length) {
+      continue;
+    }
+
+    const rawService =
+      matches[matches.length - 1][0].toLowerCase();
 
     if (rawService === "chef" || rawService === "private chef") {
       serviceType = "Private Chef";
@@ -498,6 +638,8 @@ function extractBookingInfo(userMessage, history) {
     } else if (rawService === "cooking class") {
       serviceType = "Cooking Class";
     }
+
+    break;
   }
 
 
@@ -583,7 +725,7 @@ function extractBookingInfo(userMessage, history) {
   }
 
   if (
-    /^(italian|mexican|mediterranean|american|french|spanish|greek|vegan|vegetarian)$/i.test(
+    /^(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)$/i.test(
       menuPreference.trim()
     )
   ) {
@@ -670,12 +812,47 @@ function extractBookingInfo(userMessage, history) {
     }
   }
 
-  if (customerSelectedDishes.length > 0) {
+  const specialCuisineFoodAnswer =
+    findAnswerAfterPrompt(
+      history,
+      /specific dishes|dishes in mind|what.*dishes|food.*would like|food.*you.*like|menu.*would like/i
+    );
+
+  const specialCuisineFoodIsReal =
+    specialCuisineFoodAnswer &&
+    !/^(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)$/i.test(
+      specialCuisineFoodAnswer.trim()
+    ) &&
+    !/^(you choose|you decide|chef maria can decide|chef maria may decide|choose for me|surprise me|whatever chef maria recommends|ok|okay|yes|great|sounds good)$/i.test(
+      specialCuisineFoodAnswer.trim()
+    );
+
+  if (
+    specialCuisineReview &&
+    specialCuisineFoodIsReal
+  ) {
+    menuPreference =
+      specialCuisineFoodAnswer.trim();
+  } else if (customerSelectedDishes.length > 0) {
     menuPreference =
       customerSelectedDishes.join(", ");
   } else if (assistantSelectedDishes.length > 0) {
     menuPreference =
       assistantSelectedDishes.join(", ");
+  }
+
+  const customerDelegatedSpecialMenu =
+    /\b(you choose|you decide|chef maria can decide|chef maria may decide|choose for me|surprise me|whatever chef maria recommends)\b/i.test(
+      allUserText
+    );
+
+  if (
+    specialCuisineReview &&
+    customerDelegatedSpecialMenu &&
+    !customerSelectedDishes.length
+  ) {
+    menuPreference =
+      `Special ${cuisinePreference} cuisine request — customer asks Chef Maria to review whether she can accommodate it and choose the menu.`;
   }
 
 
@@ -696,6 +873,12 @@ function extractBookingInfo(userMessage, history) {
     )
   ) {
     allergies = "None";
+  } else if (
+    /^(yes|yeah|yep|ok|okay|ok that's good|okay that's good|thats good|that's good|sounds good|looks good|great|perfect|fine|correct)$/i.test(
+      allergies.trim()
+    )
+  ) {
+    allergies = "";
   }
 
 
@@ -780,6 +963,10 @@ function extractBookingInfo(userMessage, history) {
 
     time:
       timeMatch ? timeMatch[0] : "",
+
+    cuisinePreference,
+
+    specialCuisineReview,
 
     menuPreference:
       menuPreference.trim(),
@@ -875,7 +1062,9 @@ async function sendBookingEmail({ resendApiKey, chefEmail, bookingInfo }) {
     <p><strong>City / Location:</strong> ${bookingInfo.cityLocation || "Not provided"}</p>
     <p><strong>Date:</strong> ${bookingInfo.date || "Not provided"}</p>
     <p><strong>Time:</strong> ${bookingInfo.time || "Not provided"}</p>
-    <p><strong>Menu selections:</strong> ${bookingInfo.menuPreference || "Not provided"}</p>
+    <p><strong>Cuisine preference:</strong> ${bookingInfo.cuisinePreference || "Not provided"}</p>
+    <p><strong>Food / Menu preferences:</strong> ${bookingInfo.menuPreference || "Not provided"}</p>
+    <p><strong>Special cuisine review required:</strong> ${bookingInfo.specialCuisineReview ? "YES - Chef Maria must personally approve this cuisine request" : "No"}</p>
     <p><strong>Allergies / Dietary restrictions:</strong> ${bookingInfo.allergies || "Not provided"}</p>
     <p><strong>Name:</strong> ${bookingInfo.name || "Not provided"}</p>
     <p><strong>Email:</strong> ${bookingInfo.email || "Not provided"}</p>
