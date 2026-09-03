@@ -80,6 +80,9 @@ Please choose Full-Service Catering or Drop-off Catering.`
     const wasAskedAboutAllergies =
       /allergies|dietary restrictions|dietary needs/i.test(
         lastAssistantMessage
+      ) &&
+      !/BOOKING INQUIRY SUMMARY|please confirm that everything is correct|reply YES to submit/i.test(
+        lastAssistantMessage
       );
 
     const vagueAllergyReply =
