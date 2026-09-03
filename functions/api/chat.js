@@ -475,6 +475,8 @@ Booking rules:
 - For any non-Italian cuisine request, explain warmly that Chef Maria specializes in Italian cuisine and that Chef Maria must personally review the special request before deciding whether she can accommodate it.
 - Never invent, recommend, or promise a non-Italian menu on Chef Maria's behalf.
 - If a customer provides specific non-Italian dishes, preserve those exact requests in the inquiry for Chef Maria to review.
+- If the customer has already provided specific non-Italian dishes, DO NOT ask them to choose an Italian menu afterward.
+- After recording their special cuisine dishes, continue to allergies or dietary restrictions.
 - If a customer says "you choose" for a non-Italian request, do NOT create a menu. Record that Chef Maria should decide whether she can accommodate the cuisine and, if so, choose the menu.
 - In the final summary, clearly label non-Italian cuisine as "SPECIAL CUISINE REQUEST - PENDING CHEF MARIA REVIEW."
 - If the customer does not know what to choose for an ITALIAN menu, offer Chef Maria's approved Italian suggestions.
@@ -761,6 +763,87 @@ function extractBookingInfo(userMessage, history) {
     }
   }
 
+  /*
+   * Remember a previous 1 / 2 catering selection.
+   * Without this, the parser forgets the choice on the next turn.
+   */
+  for (let i = history.length - 2; i >= 0; i--) {
+    const assistant = history[i];
+    const user = history[i + 1];
+
+    if (
+      assistant?.role !== "assistant" ||
+      user?.role !== "user"
+    ) {
+      continue;
+    }
+
+    const assistantText =
+      assistant.content || "";
+
+    const askedCateringChoice =
+      /full-service catering|full service catering/i.test(
+        assistantText
+      ) &&
+      /drop-off catering|drop off catering/i.test(
+        assistantText
+      );
+
+    if (!askedCateringChoice) {
+      continue;
+    }
+
+    const previousChoice =
+      (user.content || "")
+        .toLowerCase()
+        .trim();
+
+    if (
+      /^(1|full service|full-service|full service catering|full-service catering)$/.test(
+        previousChoice
+      )
+    ) {
+      serviceType = "Full-Service Catering";
+      break;
+    }
+
+    if (
+      /^(2|drop off|drop-off|drop off catering|drop-off catering)$/.test(
+        previousChoice
+      )
+    ) {
+      serviceType = "Drop-off Catering";
+      break;
+    }
+  }
+
+  /*
+   * The CURRENT reply always wins if the customer changes
+   * from option 1 to 2 or from option 2 to 1.
+   */
+  if (choosingCateringFormat) {
+    const currentChoice =
+      userMessage
+        .toLowerCase()
+        .trim();
+
+    if (
+      /^(1|full service|full-service|full service catering|full-service catering)$/.test(
+        currentChoice
+      )
+    ) {
+      serviceType = "Full-Service Catering";
+    }
+
+    if (
+      /^(2|drop off|drop-off|drop off catering|drop-off catering)$/.test(
+        currentChoice
+      )
+    ) {
+      serviceType = "Drop-off Catering";
+    }
+  }
+
 
   /*
    * LOCATION
@@ -931,6 +1014,41 @@ function extractBookingInfo(userMessage, history) {
     }
   }
 
+  let combinedSpecialCuisineFood = "";
+
+  const specialCuisineMessages = [
+    ...userMessages,
+    userMessage
+  ];
+
+  for (let i = specialCuisineMessages.length - 1; i >= 0; i--) {
+    const text =
+      specialCuisineMessages[i] || "";
+
+    const match =
+      text.match(
+        /\b(mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)\b\s*[:,-]?\s*(.+)$/i
+      );
+
+    if (!match) {
+      continue;
+    }
+
+    const foodText =
+      (match[2] || "").trim();
+
+    if (
+      foodText &&
+      !/^(food|menu|cuisine|please|thanks|thank you)$/i.test(
+        foodText
+      )
+    ) {
+      combinedSpecialCuisineFood =
+        foodText;
+      break;
+    }
+  }
+
   const specialCuisineFoodAnswer =
     findAnswerAfterPrompt(
       history,
@@ -942,7 +1060,7 @@ function extractBookingInfo(userMessage, history) {
     !/^(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)$/i.test(
       specialCuisineFoodAnswer.trim()
     ) &&
-    !/^(you choose|you decide|chef maria can decide|chef maria may decide|choose for me|surprise me|whatever chef maria recommends|ok|okay|yes|great|sounds good)$/i.test(
+    !/^(you choose|you decide|chef maria can decide|chef maria may decide|choose for me|surprise me|whatever chef maria recommends|all of them|everything|ok|okay|yes|great|sounds good)$/i.test(
       specialCuisineFoodAnswer.trim()
     );
 
@@ -952,6 +1070,12 @@ function extractBookingInfo(userMessage, history) {
   ) {
     menuPreference =
       specialCuisineFoodAnswer.trim();
+  } else if (
+    specialCuisineReview &&
+    combinedSpecialCuisineFood
+  ) {
+    menuPreference =
+      combinedSpecialCuisineFood;
   } else if (customerSelectedDishes.length > 0) {
     menuPreference =
       customerSelectedDishes.join(", ");
