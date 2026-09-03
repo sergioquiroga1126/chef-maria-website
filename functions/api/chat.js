@@ -47,6 +47,23 @@ Chef Maria will personally review the final event setup.`
       });
     }
 
+    if (
+      guestCount > 10 &&
+      bookingInfo.serviceType === "Catering"
+    ) {
+      return jsonResponse({
+        answer:
+          `Absolutely. For ${guestCount} guests, I just need to clarify the catering format.
+
+Would you prefer:
+
+1. Full-Service Catering — Chef Maria and service staff handle the event on-site
+2. Drop-off Catering — the prepared food is delivered for your event
+
+Please choose Full-Service Catering or Drop-off Catering.`
+      });
+    }
+
     /*
      * ENFORCE FOOD SELECTION
      *
@@ -310,8 +327,13 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
         .replace(/\s+/g, " ")
         .trim();
 
+    const awaitingFinalConfirmation =
+      /please confirm that everything is correct|confirm.*submit your inquiry|final summary|summary of your inquiry|complete inquiry summary/i.test(
+        lastAssistantMessage
+      );
+
     const isConfirmation =
-      /^(yes|yes please|yeah|yep|sure|yes everything is correct|correct|confirmed|confirm|looks good|that is correct|everything is correct|ok|okay|send it|submit|submit it|go ahead)$/i.test(
+      /^(yes|yes please|yes correct|yes that is correct|yes thats correct|yes everything is correct|yes it is|yeah|yep|sure|correct|confirmed|confirm|looks good|looks perfect|everything looks good|that is correct|everything is correct|all good|ok|okay|ok send it|okay send it|yes send it|send it|please send it|submit|submit it|please submit|submit the inquiry|send the inquiry|go ahead|yes go ahead|proceed)$/i.test(
         confirmationText
       );
 
@@ -359,6 +381,58 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
         answer:
           "IMPORTANT: YOUR INQUIRY WAS NOT SENT.\n\nThe email submission did not complete successfully. Please try again or contact Chef Maria directly.\n\nPhone: 561-692-1473\nEmail: cucinadiverona@gmail.com"
       });
+    }
+
+    if (
+      bookingInfo.readyToSend &&
+      !awaitingFinalConfirmation
+    ) {
+      const cuisineSummary =
+        bookingInfo.specialCuisineReview
+          ? `${bookingInfo.cuisinePreference} — SPECIAL CUISINE REQUEST, PENDING CHEF MARIA REVIEW`
+          : bookingInfo.cuisinePreference || "Italian";
+
+      return jsonResponse({
+        answer:
+          `BOOKING INQUIRY SUMMARY
+
+Guest Count: ${bookingInfo.guests}
+Service Type: ${bookingInfo.serviceType}
+City / Location: ${bookingInfo.cityLocation}
+Date: ${bookingInfo.date}
+Time: ${bookingInfo.time}
+Cuisine Preference: ${cuisineSummary}
+Food / Menu Preferences: ${bookingInfo.menuPreference}
+Allergies / Dietary Restrictions: ${bookingInfo.allergies}
+Name: ${bookingInfo.name}
+Email: ${bookingInfo.email}
+Phone: ${bookingInfo.phone}
+
+Please confirm that everything is correct so I can submit your inquiry to Chef Maria.
+
+Reply YES to submit, or tell me what needs to be changed.`
+      });
+    }
+
+    /*
+     * Once the server has shown the final summary,
+     * never allow the AI to pretend the inquiry was submitted.
+     */
+    if (
+      awaitingFinalConfirmation &&
+      !isConfirmation
+    ) {
+      const looksLikeCorrection =
+        /\b(change|update|correct|correction|wrong|instead|actually|edit|replace|not correct|nope)\b/i.test(
+          userMessage
+        );
+
+      if (!looksLikeCorrection) {
+        return jsonResponse({
+          answer:
+            "Your inquiry has NOT been sent yet. Please reply YES to submit it to Chef Maria, or tell me what information needs to be changed."
+        });
+      }
     }
 
     const messages = [
@@ -425,7 +499,10 @@ Booking rules:
 - When all booking details are collected, summarize the details and ask: "Please confirm that everything is correct so I can submit your inquiry to Chef Maria."
 - Never say "we'll proceed with the booking." Say "submit your inquiry" instead.
 - Do not say the booking is final until the customer confirms.
-- Never claim that an inquiry was submitted or emailed unless the server returns "INQUIRY SENT SUCCESSFULLY".
+- Never claim that an inquiry was submitted, emailed, sent, or is being submitted.
+- Never say "I will submit your inquiry", "I have submitted it", "I sent it", or similar.
+- Only the server is allowed to submit an inquiry.
+- An inquiry is sent ONLY when the server returns "INQUIRY SENT SUCCESSFULLY".
 - For final booking confirmations, always tell customers:
 
 Phone: 561-692-1473
