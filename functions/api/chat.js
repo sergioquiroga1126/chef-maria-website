@@ -23,6 +23,110 @@ export async function onRequestPost(context) {
       });
     }
 
+    /*
+     * EXTREMELY LARGE EVENT GUARD
+     *
+     * Events of 1,000+ guests cannot be processed automatically
+     * by the booking assistant. They require direct Chef Maria review.
+     */
+    const lastAssistantBeforeBooking =
+      [...history]
+        .reverse()
+        .find((item) => item.role === "assistant")
+        ?.content || "";
+
+    const askedForGuestCount =
+      /guest count|how many guests|number of guests|guests will be attending/i.test(
+        lastAssistantBeforeBooking
+      );
+
+    const explicitGuestCountMatch =
+      userMessage.match(
+        /\b(\d{1,30})\s*(?:people|guests?|gusts?|persons?|adults?|kids?|children)\b/i
+      );
+
+    const bareGuestCountMatch =
+      askedForGuestCount &&
+      /^\s*(\d{1,30})\s*$/.test(userMessage)
+        ? userMessage.trim().match(/^(\d{1,30})$/)
+        : null;
+
+    const oversizedGuestText =
+      explicitGuestCountMatch?.[1] ||
+      bareGuestCountMatch?.[1] ||
+      "";
+
+    if (oversizedGuestText) {
+      try {
+        const oversizedGuestCount =
+          BigInt(oversizedGuestText);
+
+        if (oversizedGuestCount >= 1000n) {
+          return jsonResponse({
+            answer:
+              "An event of 1,000 or more guests requires direct review by Chef Maria and cannot be processed through the automated booking assistant. Please contact Chef Maria at 561-692-1473 or cucinadiverona@gmail.com so the event size, staffing, venue, and service requirements can be reviewed personally."
+          });
+        }
+      } catch {
+        return jsonResponse({
+          answer:
+            "Please provide a valid guest count so I can help with your event."
+        });
+      }
+    }
+
+    /*
+     * LARGE EVENT GUARD
+     *
+     * Events over 100 guests require direct Chef Maria review
+     * and cannot be processed automatically.
+     */
+    const lastAssistantBeforeBooking =
+      [...history]
+        .reverse()
+        .find((item) => item.role === "assistant")
+        ?.content || "";
+
+    const askedForGuestCount =
+      /guest count|how many guests|number of guests|guests will be attending/i.test(
+        lastAssistantBeforeBooking
+      );
+
+    const explicitGuestCountMatch =
+      userMessage.match(
+        /\b(\d{1,30})\s*(?:people|guests?|gusts?|persons?|adults?|kids?|children)\b/i
+      );
+
+    const bareGuestCountMatch =
+      askedForGuestCount &&
+      /^\s*(\d{1,30})\s*$/.test(userMessage)
+        ? userMessage.trim().match(/^(\d{1,30})$/)
+        : null;
+
+    const largeGuestText =
+      explicitGuestCountMatch?.[1] ||
+      bareGuestCountMatch?.[1] ||
+      "";
+
+    if (largeGuestText) {
+      try {
+        const largeGuestCount =
+          BigInt(largeGuestText);
+
+        if (largeGuestCount > 100n) {
+          return jsonResponse({
+            answer:
+              "Events with more than 100 guests require direct review by Chef Maria and cannot be completed through the automated booking assistant. Please contact Chef Maria at 561-692-1473 or cucinadiverona@gmail.com so she can personally review the venue, staffing, menu, and service requirements."
+          });
+        }
+      } catch {
+        return jsonResponse({
+          answer:
+            "Please provide a valid guest count so I can help with your event."
+        });
+      }
+    }
+
     const bookingInfo = extractBookingInfo(userMessage, history);
 
     const guestCount =
@@ -544,6 +648,10 @@ Booking rules:
 - Do not continue to allergies until the customer has provided specific food choices or explicitly says Chef Maria may choose/recommend the menu.
 - Do not sound robotic.
 - If the customer gives several details at once, acknowledge them and ask only for what is still missing.
+- Never describe an unusually large guest count as "realistic" or automatically acceptable.
+- Events of 1,000 or more guests must be referred for direct Chef Maria review and must not continue through automated booking.
+- Never describe an unusually large guest count as automatically acceptable or realistic.
+- Events with more than 100 guests require direct Chef Maria review and must not continue through automated booking.
 - Standard private-chef service is for up to 10 guests.
 - For more than 10 guests, do NOT accept the event as a standard private-chef booking.
 - Explain that the event requires a catering format and may require additional service staff.
