@@ -184,6 +184,73 @@ Please choose Full-Service Catering or Drop-off Catering.`
       });
     }
 
+    /*
+     * CONTACT VALIDATION
+     *
+     * Do not let the AI verbally accept invalid contact information.
+     */
+    const wasAskedForEmail =
+      /email address|provide your email|your email/i.test(
+        lastAssistantMessage
+      );
+
+    const currentEmailMatch =
+      userMessage.match(
+        /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
+      );
+
+    const emailCorrectionAttempt =
+      /\b(email|e-mail)\b/i.test(userMessage);
+
+    if (
+      (wasAskedForEmail || emailCorrectionAttempt) &&
+      !currentEmailMatch
+    ) {
+      return jsonResponse({
+        answer:
+          "That email address does not look complete. Please enter a valid email address, for example: name@example.com."
+      });
+    }
+
+    const wasAskedForPhone =
+      /phone number|best phone|telephone|number to reach you/i.test(
+        lastAssistantMessage
+      );
+
+    const phoneCorrectionAttempt =
+      /\b(phone|telephone|cell|mobile)\b/i.test(
+        userMessage
+      );
+
+    const currentPhoneMatch =
+      userMessage.match(
+        /(?:\+?1[-.\s]?)?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})/
+      );
+
+    let currentPhoneIsValid = false;
+
+    if (currentPhoneMatch) {
+      const area = currentPhoneMatch[1];
+      const exchange = currentPhoneMatch[2];
+      const digits =
+        `${area}${exchange}${currentPhoneMatch[3]}`;
+
+      currentPhoneIsValid =
+        /^[2-9]\d{2}$/.test(area) &&
+        /^[2-9]\d{2}$/.test(exchange) &&
+        !/^(\d)\1{9}$/.test(digits);
+    }
+
+    if (
+      (wasAskedForPhone || phoneCorrectionAttempt) &&
+      !currentPhoneIsValid
+    ) {
+      return jsonResponse({
+        answer:
+          "Please enter a valid 10-digit U.S. phone number, for example: 561-692-1473."
+      });
+    }
+
     const wasAskedForTime =
       /what time|provide.*time|time .*start|service to begin|service to start/i.test(
         lastAssistantMessage
@@ -1321,38 +1388,74 @@ function extractBookingInfo(userMessage, history) {
   /*
    * EMAIL
    */
-  const emailAnswer =
-    findAnswerAfterPrompt(
-      history,
-      /email address|provide your email|your email/i
-    );
+  /*
+   * EMAIL
+   *
+   * The newest valid email wins.
+   */
+  let emailMatch = null;
 
-  const emailSource =
-    `${emailAnswer}\n${allUserText}`
-      .replace(/\\/g, "");
+  const emailCandidates = [
+    ...userMessages,
+    userMessage
+  ];
 
-  const emailMatch =
-    emailSource.match(
-      /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
-    );
+  for (let i = emailCandidates.length - 1; i >= 0; i--) {
+    const match =
+      (emailCandidates[i] || "").match(
+        /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
+      );
+
+    if (match) {
+      emailMatch = match;
+      break;
+    }
+  }
 
 
   /*
    * PHONE
    */
-  const phoneAnswer =
-    findAnswerAfterPrompt(
-      history,
-      /phone number|best phone|telephone|number to reach you/i
-    );
+  /*
+   * PHONE
+   *
+   * The newest valid U.S. phone number wins.
+   */
+  let phoneMatch = null;
 
-  const phoneSource =
-    `${phoneAnswer}\n${allUserText}`;
+  const phoneCandidates = [
+    ...userMessages,
+    userMessage
+  ];
 
-  const phoneMatch =
-    phoneSource.match(
-      /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/
-    );
+  for (let i = phoneCandidates.length - 1; i >= 0; i--) {
+    const candidate =
+      phoneCandidates[i] || "";
+
+    const match =
+      candidate.match(
+        /(?:\+?1[-.\s]?)?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})/
+      );
+
+    if (!match) {
+      continue;
+    }
+
+    const area = match[1];
+    const exchange = match[2];
+    const digits =
+      `${area}${exchange}${match[3]}`;
+
+    const valid =
+      /^[2-9]\d{2}$/.test(area) &&
+      /^[2-9]\d{2}$/.test(exchange) &&
+      !/^(\d)\1{9}$/.test(digits);
+
+    if (valid) {
+      phoneMatch = match;
+      break;
+    }
+  }
 
 
   const info = {
