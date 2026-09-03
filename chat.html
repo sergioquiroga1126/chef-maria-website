@@ -6,129 +6,259 @@
   <title>Ask Chef Maria AI</title>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      font-family: Georgia, serif;
-      background: #f7f1ea;
+      font-family: Georgia, "Times New Roman", serif;
+      background: #f6efe7;
       color: #2b1b12;
     }
 
     .chat-page {
-      max-width: 850px;
+      max-width: 920px;
       margin: 0 auto;
-      padding: 40px 20px;
+      padding: 28px 18px 50px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 16px;
+      color: #8b1e1e;
+      text-decoration: none;
+      font-weight: 700;
     }
 
     .chat-card {
-      background: white;
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      background: #ffffff;
+      border: 1px solid #eadfd5;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 16px 45px rgba(74, 45, 28, 0.12);
+    }
+
+    .chat-header {
+      padding: 26px 28px 20px;
+      background: #fffaf5;
+      border-bottom: 1px solid #eee2d8;
     }
 
     h1 {
-      margin-top: 0;
+      margin: 0 0 8px;
       color: #8b1e1e;
+      font-size: 36px;
+    }
+
+    .chat-subtitle {
+      margin: 0;
+      color: #6f5b4d;
+      line-height: 1.5;
     }
 
     #messages {
-      min-height: 320px;
-      max-height: 520px;
+      min-height: 390px;
+      max-height: 600px;
       overflow-y: auto;
-      border: 1px solid #e2d7cc;
-      border-radius: 14px;
-      padding: 16px;
-      background: #fffaf5;
-      margin-bottom: 16px;
+      padding: 24px;
+      background: #fbf8f4;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
+      scroll-behavior: smooth;
     }
 
     .msg {
-      max-width: 82%;
-      padding: 12px 16px;
-      border-radius: 16px;
+      max-width: 78%;
+      padding: 13px 16px;
+      border-radius: 18px;
       line-height: 1.55;
       white-space: pre-wrap;
-      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      box-shadow: 0 3px 10px rgba(56, 35, 22, 0.05);
     }
 
-    .user {
+    .msg.user {
       align-self: flex-end;
       background: #8b1e1e;
       color: white;
-      border-bottom-right-radius: 5px;
+      border-bottom-right-radius: 6px;
     }
 
-    .bot {
+    .msg.bot {
       align-self: flex-start;
       background: white;
       border: 1px solid #eadfd5;
-      border-bottom-left-radius: 5px;
+      border-bottom-left-radius: 6px;
     }
 
     .speaker {
-      display: inline;
-      font-weight: bold;
-      margin-right: 6px;
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      opacity: 0.78;
     }
 
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    .msg.summary {
+      width: 94%;
+      max-width: 94%;
+      padding: 20px;
+      background: #fffdf9;
+      border: 2px solid #d9c0a6;
+      box-shadow: 0 8px 24px rgba(74, 45, 28, 0.09);
+    }
+
+    .msg.summary .speaker {
+      color: #8b1e1e;
+      font-size: 14px;
+    }
+
+    .msg.success {
+      width: 94%;
+      max-width: 94%;
+      padding: 20px;
+      background: #f3faf4;
+      border: 2px solid #9dc9a4;
+    }
+
+    .msg.success .speaker {
+      color: #276536;
+    }
+
+    .msg.error {
+      width: 94%;
+      max-width: 94%;
+      padding: 20px;
+      background: #fff5f3;
+      border: 2px solid #d9a19a;
+    }
+
+    .msg.error .speaker {
+      color: #8b1e1e;
+    }
+
+    .input-area {
+      padding: 18px 22px 22px;
+      background: white;
+      border-top: 1px solid #eee2d8;
     }
 
     .input-row {
       display: flex;
       gap: 10px;
+      align-items: center;
     }
 
     input {
       flex: 1;
-      padding: 14px;
+      min-width: 0;
+      padding: 15px 18px;
       border-radius: 999px;
       border: 1px solid #d8c8b8;
+      background: #fffdfb;
+      color: #2b1b12;
+      font: inherit;
       font-size: 16px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #8b1e1e;
+      box-shadow: 0 0 0 3px rgba(139, 30, 30, 0.10);
     }
 
     button {
-      padding: 14px 22px;
+      padding: 15px 24px;
       border: none;
       border-radius: 999px;
       background: #8b1e1e;
       color: white;
-      font-weight: bold;
+      font: inherit;
+      font-weight: 700;
       cursor: pointer;
     }
 
-    a {
-      color: #8b1e1e;
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 640px) {
+      .chat-page {
+        padding: 12px 10px 24px;
+      }
+
+      .chat-card {
+        border-radius: 18px;
+      }
+
+      .chat-header {
+        padding: 20px 18px 16px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      #messages {
+        min-height: 360px;
+        max-height: 62vh;
+        padding: 16px 12px;
+      }
+
+      .msg {
+        max-width: 88%;
+      }
+
+      .msg.summary,
+      .msg.success,
+      .msg.error {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .input-area {
+        padding: 12px;
+      }
+
+      button {
+        padding: 14px 18px;
+      }
     }
   </style>
 </head>
 
 <body>
   <div class="chat-page">
-    <p><a href="/">← Back to Chef Maria</a></p>
+    <a class="back-link" href="/">← Back to Chef Maria</a>
 
     <div class="chat-card">
-      <h1>Ask Chef Maria AI</h1>
+      <div class="chat-header">
+        <h1>Ask Chef Maria AI</h1>
+        <p class="chat-subtitle">
+          Private chef dinners, catering, menus, cooking classes and event inquiries.
+        </p>
+      </div>
 
-      <p>
-        Ask about private dinners, catering, menus, cooking classes, dietary needs,
-        service areas, and event ideas.
-      </p>
-
-      <div id="messages">
+      <div id="messages" aria-live="polite">
         <div class="msg bot">
-          <strong>Chef Maria AI:</strong> Ciao! How can I help you plan your Italian private dining experience?
+          <span class="speaker">Chef Maria AI</span>
+          <span>Ciao! How can I help you plan your Italian private dining experience?</span>
         </div>
       </div>
 
-      <div class="input-row">
-        <input id="question" placeholder="Ask Chef Maria AI..." />
-        <button onclick="sendMessage()">Send</button>
+      <div class="input-area">
+        <div class="input-row">
+          <input
+            id="question"
+            type="text"
+            autocomplete="off"
+            placeholder="Message Chef Maria AI..."
+          >
+          <button type="button" onclick="sendMessage()">Send</button>
+        </div>
       </div>
     </div>
   </div>
@@ -150,22 +280,42 @@
 
       const box = document.createElement("div");
       box.className = `msg ${role}`;
-      if (id) box.id = id;
+
+      if (id) {
+        box.id = id;
+      }
+
+      const cleanedText =
+        role === "bot" ? cleanBotText(text) : text;
+
+      if (role === "bot") {
+        if (/^BOOKING INQUIRY SUMMARY/i.test(cleanedText)) {
+          box.classList.add("summary");
+        }
+
+        if (/^✓ INQUIRY SENT SUCCESSFULLY/i.test(cleanedText)) {
+          box.classList.add("success");
+        }
+
+        if (/^IMPORTANT: YOUR INQUIRY WAS NOT SENT/i.test(cleanedText)) {
+          box.classList.add("error");
+        }
+      }
 
       const speaker = document.createElement("span");
       speaker.className = "speaker";
       speaker.textContent =
-        role === "user" ? "You:" : "Chef Maria AI:";
+        role === "user" ? "You" : "Chef Maria AI";
 
       const content = document.createElement("span");
-      content.textContent =
-        role === "bot" ? cleanBotText(text) : text;
+      content.textContent = cleanedText;
 
       box.appendChild(speaker);
       box.appendChild(content);
       messages.appendChild(box);
 
       messages.scrollTop = messages.scrollHeight;
+
       return box;
     }
 
