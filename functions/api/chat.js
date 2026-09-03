@@ -36,8 +36,12 @@ export async function onRequestPost(context) {
         .find((item) => item.role === "assistant")
         ?.content || "";
 
-    const askedForGuestCount =
-      /guest count|how many guests|number of guests|guests will be attending/i.test(
+    /*
+     * A customer may change the guest count after we have already
+     * moved to the catering-choice question.
+     */
+    const guestCountContext =
+      /guest count|how many guests|number of guests|guests will be attending|full-service catering|full service catering|drop-off catering|drop off catering|catering format/i.test(
         lastAssistantBeforeBooking
       );
 
@@ -46,11 +50,15 @@ export async function onRequestPost(context) {
         /\b(\d[\d.,\s]{0,200})\s*(?:people|guests?|gusts?|persons?|adults?|kids?|children)\b/i
       );
 
+    const correctedGuestCountMatch =
+      guestCountContext
+        ? userMessage.trim().match(
+            /^(?:actually\s+|change(?:\s+it)?\s+to\s+|make\s+it\s+)?([\d.,\s]+)$/i
+          )
+        : null;
+
     const bareGuestCountText =
-      askedForGuestCount &&
-      /^[\d.,\s]+$/.test(userMessage.trim())
-        ? userMessage.trim()
-        : "";
+      correctedGuestCountMatch?.[1] || "";
 
     const guestCountText =
       explicitGuestCountMatch?.[1] ||
