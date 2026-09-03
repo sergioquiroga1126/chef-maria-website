@@ -74,7 +74,6 @@
       padding: 13px 16px;
       border-radius: 18px;
       line-height: 1.55;
-      white-space: pre-wrap;
       overflow-wrap: anywhere;
       box-shadow: 0 3px 10px rgba(56, 35, 22, 0.05);
     }
@@ -91,6 +90,11 @@
       background: white;
       border: 1px solid #eadfd5;
       border-bottom-left-radius: 6px;
+    }
+
+    .msg-content {
+      display: block;
+      white-space: pre-wrap;
     }
 
     .speaker {
@@ -245,7 +249,7 @@
       <div id="messages" aria-live="polite">
         <div class="msg bot">
           <span class="speaker">Chef Maria AI</span>
-          <span>Ciao! How can I help you plan your Italian private dining experience?</span>
+          <span class="msg-content">Ciao! How can I help you plan your Italian private dining experience?</span>
         </div>
       </div>
 
@@ -308,6 +312,7 @@
         role === "user" ? "You" : "Chef Maria AI";
 
       const content = document.createElement("span");
+      content.className = "msg-content";
       content.textContent = cleanedText;
 
       box.appendChild(speaker);
