@@ -24,62 +24,11 @@ export async function onRequestPost(context) {
     }
 
     /*
-     * EXTREMELY LARGE EVENT GUARD
-     *
-     * Events of 1,000+ guests cannot be processed automatically
-     * by the booking assistant. They require direct Chef Maria review.
-     */
-    const lastAssistantBeforeBooking =
-      [...history]
-        .reverse()
-        .find((item) => item.role === "assistant")
-        ?.content || "";
-
-    const askedForGuestCount =
-      /guest count|how many guests|number of guests|guests will be attending/i.test(
-        lastAssistantBeforeBooking
-      );
-
-    const explicitGuestCountMatch =
-      userMessage.match(
-        /\b(\d{1,30})\s*(?:people|guests?|gusts?|persons?|adults?|kids?|children)\b/i
-      );
-
-    const bareGuestCountMatch =
-      askedForGuestCount &&
-      /^\s*(\d{1,30})\s*$/.test(userMessage)
-        ? userMessage.trim().match(/^(\d{1,30})$/)
-        : null;
-
-    const oversizedGuestText =
-      explicitGuestCountMatch?.[1] ||
-      bareGuestCountMatch?.[1] ||
-      "";
-
-    if (oversizedGuestText) {
-      try {
-        const oversizedGuestCount =
-          BigInt(oversizedGuestText);
-
-        if (oversizedGuestCount >= 1000n) {
-          return jsonResponse({
-            answer:
-              "An event of 1,000 or more guests requires direct review by Chef Maria and cannot be processed through the automated booking assistant. Please contact Chef Maria at 561-692-1473 or cucinadiverona@gmail.com so the event size, staffing, venue, and service requirements can be reviewed personally."
-          });
-        }
-      } catch {
-        return jsonResponse({
-          answer:
-            "Please provide a valid guest count so I can help with your event."
-        });
-      }
-    }
-
-    /*
      * LARGE EVENT GUARD
      *
-     * Events over 100 guests require direct Chef Maria review
-     * and cannot be processed automatically.
+     * 1-10 guests: standard private-chef range.
+     * 11-100 guests: catering.
+     * More than 100 guests: direct Chef Maria review.
      */
     const lastAssistantBeforeBooking =
       [...history]
@@ -94,29 +43,32 @@ export async function onRequestPost(context) {
 
     const explicitGuestCountMatch =
       userMessage.match(
-        /\b(\d{1,30})\s*(?:people|guests?|gusts?|persons?|adults?|kids?|children)\b/i
+        /\b(\d[\d.,\s]{0,200})\s*(?:people|guests?|gusts?|persons?|adults?|kids?|children)\b/i
       );
 
-    const bareGuestCountMatch =
+    const bareGuestCountText =
       askedForGuestCount &&
-      /^\s*(\d{1,30})\s*$/.test(userMessage)
-        ? userMessage.trim().match(/^(\d{1,30})$/)
-        : null;
+      /^[\d.,\s]+$/.test(userMessage.trim())
+        ? userMessage.trim()
+        : "";
 
-    const largeGuestText =
+    const guestCountText =
       explicitGuestCountMatch?.[1] ||
-      bareGuestCountMatch?.[1] ||
+      bareGuestCountText ||
       "";
 
-    if (largeGuestText) {
-      try {
-        const largeGuestCount =
-          BigInt(largeGuestText);
+    const guestCountDigits =
+      guestCountText.replace(/\D/g, "");
 
-        if (largeGuestCount > 100n) {
+    if (guestCountDigits) {
+      try {
+        const requestedGuestCount =
+          BigInt(guestCountDigits);
+
+        if (requestedGuestCount > 100n) {
           return jsonResponse({
             answer:
-              "Events with more than 100 guests require direct review by Chef Maria and cannot be completed through the automated booking assistant. Please contact Chef Maria at 561-692-1473 or cucinadiverona@gmail.com so she can personally review the venue, staffing, menu, and service requirements."
+              "Events with more than 100 guests require direct review by Chef Maria and cannot be completed through the automated booking assistant. Please contact Chef Maria at 561-692-1473 or cucinadiverona@gmail.com so she can personally review the event requirements."
           });
         }
       } catch {
