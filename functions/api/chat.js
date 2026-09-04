@@ -1468,16 +1468,17 @@ function extractBookingInfo(userMessage, history) {
   /*
    * ALLERGIES / DIETARY RESTRICTIONS
    *
-   * "no" now becomes "None".
+   * Remember dietary information even if the customer mentions it
+   * earlier in the conversation.
    */
   let allergies =
     findAnswerAfterPrompt(
       history,
-      /allergies|dietary restrictions|dietary needs/i
+      /allergies|dietary restrictions|dietary needs|dietary preferences/i
     );
 
   if (
-    /^(no+|nope+|none|nah|npo|no allergies|no allergy|no restrictions|no dietary restrictions)$/i.test(
+    /^(no+|nope+|none|nah|npo|no allergies|no allergy|no restrictions|no dietary restrictions|no dietary needs)$/i.test(
       allergies.trim()
     )
   ) {
@@ -1488,6 +1489,173 @@ function extractBookingInfo(userMessage, history) {
     )
   ) {
     allergies = "";
+  }
+
+  const dietaryCandidates = [
+    ...userMessages,
+    userMessage
+  ];
+
+  let dietaryDetails = [];
+  let dietaryExplicitNone = false;
+
+  const addDietaryDetail = (value) => {
+    if (
+      value &&
+      !dietaryDetails.some(
+        (item) =>
+          item.toLowerCase() === value.toLowerCase()
+      )
+    ) {
+      dietaryDetails.push(value);
+    }
+  };
+
+  for (const candidateRaw of dietaryCandidates) {
+    const candidate =
+      (candidateRaw || "").trim();
+
+    if (!candidate) {
+      continue;
+    }
+
+    /*
+     * Never record pet dietary information.
+     */
+    const isPetDietary =
+      /\b(dog|cat|pet|puppy|kitten|animal)\b/i.test(
+        candidate
+      ) &&
+      /\b(gluten|glutten|allerg|diet|dietary|dairy|peanut|nut|shellfish|food|meal)\b/i.test(
+        candidate
+      );
+
+    if (isPetDietary) {
+      continue;
+    }
+
+    /*
+     * A later explicit "none" clears older dietary information.
+     */
+    const explicitNone =
+      /^(?:actually\s+)?(?:no+|none|nope|nah)\s*(?:allergies?|dietary restrictions?|dietary needs?|dietary preferences?|restrictions?)?[.!]?$/i.test(
+        candidate
+      ) ||
+      /\b(?:actually\s+)?no\s+(?:allergies?|dietary restrictions?|dietary needs?|dietary preferences?)\b/i.test(
+        candidate
+      );
+
+    if (explicitNone) {
+      dietaryDetails = [];
+      dietaryExplicitNone = true;
+      continue;
+    }
+
+    const foundBefore =
+      dietaryDetails.length;
+
+    if (/\b(?:gluten[- ]?free|glutten[- ]?free)\b/i.test(candidate)) {
+      addDietaryDetail("Gluten-free");
+    }
+
+    if (/\bceliac\b/i.test(candidate)) {
+      addDietaryDetail("Celiac");
+    }
+
+    if (/\bdairy[- ]?free\b/i.test(candidate)) {
+      addDietaryDetail("Dairy-free");
+    }
+
+    if (/\blactose intolerant\b/i.test(candidate)) {
+      addDietaryDetail("Lactose intolerant");
+    }
+
+    if (/\bvegetarian\b/i.test(candidate)) {
+      addDietaryDetail("Vegetarian");
+    }
+
+    if (/\bvegan\b/i.test(candidate)) {
+      addDietaryDetail("Vegan");
+    }
+
+    if (/\bpescatarian\b/i.test(candidate)) {
+      addDietaryDetail("Pescatarian");
+    }
+
+    if (/\bpeanut allerg(?:y|ic)\b/i.test(candidate)) {
+      addDietaryDetail("Peanut allergy");
+    }
+
+    if (/\btree nut allerg(?:y|ic)\b/i.test(candidate)) {
+      addDietaryDetail("Tree nut allergy");
+    }
+
+    if (
+      /\bnut allerg(?:y|ic)\b/i.test(candidate) &&
+      !/\b(?:peanut|tree nut) allerg/i.test(candidate)
+    ) {
+      addDietaryDetail("Nut allergy");
+    }
+
+    if (/\bshellfish allerg(?:y|ic)\b/i.test(candidate)) {
+      addDietaryDetail("Shellfish allergy");
+    }
+
+    if (/\bseafood allerg(?:y|ic)\b/i.test(candidate)) {
+      addDietaryDetail("Seafood allergy");
+    }
+
+    if (/\begg allerg(?:y|ic)\b/i.test(candidate)) {
+      addDietaryDetail("Egg allergy");
+    }
+
+    if (/\bsoy allerg(?:y|ic)\b/i.test(candidate)) {
+      addDietaryDetail("Soy allergy");
+    }
+
+    if (/\bkosher\b/i.test(candidate)) {
+      addDietaryDetail("Kosher");
+    }
+
+    if (/\bhalal\b/i.test(candidate)) {
+      addDietaryDetail("Halal");
+    }
+
+    if (/\bno pork\b/i.test(candidate)) {
+      addDietaryDetail("No pork");
+    }
+
+    if (/\blow[- ]?sodium\b/i.test(candidate)) {
+      addDietaryDetail("Low sodium");
+    }
+
+    /*
+     * Capture less common allergies such as:
+     * "allergic to sesame"
+     */
+    if (dietaryDetails.length === foundBefore) {
+      const allergicToMatch =
+        candidate.match(
+          /\ballergic to\s+([^,.;\n]{1,60})/i
+        );
+
+      if (allergicToMatch) {
+        addDietaryDetail(
+          `Allergic to ${allergicToMatch[1].trim()}`
+        );
+      }
+    }
+
+    if (dietaryDetails.length > foundBefore) {
+      dietaryExplicitNone = false;
+    }
+  }
+
+  if (dietaryDetails.length > 0) {
+    allergies =
+      dietaryDetails.join(", ");
+  } else if (dietaryExplicitNone) {
+    allergies = "None";
   }
 
 
