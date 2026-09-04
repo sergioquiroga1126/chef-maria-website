@@ -908,24 +908,81 @@ function extractBookingInfo(userMessage, history) {
 
   /*
    * GUEST COUNT
+   *
+   * The newest guest count always wins.
+   * This allows corrections such as:
+   * "14 people" -> "actually 9 people"
    */
-  const guestAnswer =
-    findAnswerAfterPrompt(
-      history,
-      /guest count|how many guests|number of guests|guests will be attending/i
-    );
+  let guestCountValue = "";
 
-  const guestMatch =
-    guestAnswer.match(/\b(\d{1,3})\b/) ||
-    allUserText.match(
-      /\b(\d{1,3})\s*(?:people|guests|persons|adults|children|kids)\b/i
-    ) ||
-    allUserText.match(
-      /\b(?:party|group|event|dinner)\s+(?:for|of)\s+(\d{1,3})\b/i
-    ) ||
-    allUserText.match(
-      /\b(?:book(?:ing)?\s+)?(?:a\s+)?party\s+(\d{1,3})\b/i
-    );
+  const guestCandidates = [
+    ...userMessages,
+    userMessage
+  ];
+
+  for (let i = guestCandidates.length - 1; i >= 0; i--) {
+    const candidate =
+      guestCandidates[i] || "";
+
+    const explicitMatches = [
+      ...candidate.matchAll(
+        /\b(\d{1,3})\s*(?:people|guests?|gusts?|persons?|adults?|children|kids)\b/gi
+      )
+    ];
+
+    if (explicitMatches.length) {
+      guestCountValue =
+        explicitMatches[explicitMatches.length - 1][1];
+      break;
+    }
+
+    const partyMatch =
+      candidate.match(
+        /\b(?:party|group|event|dinner)\s+(?:for|of)\s+(\d{1,3})\b/i
+      );
+
+    if (partyMatch) {
+      guestCountValue = partyMatch[1];
+      break;
+    }
+
+    const correctionMatch =
+      candidate.match(
+        /\b(?:change|update|correct|make|actually|instead|saying)\b.{0,30}\b(\d{1,3})\s*(?:people|guests?)\b/i
+      );
+
+    if (correctionMatch) {
+      guestCountValue = correctionMatch[1];
+      break;
+    }
+  }
+
+  /*
+   * Allow a bare number only when the assistant
+   * specifically asked for the guest count.
+   */
+  if (!guestCountValue) {
+    const lastAssistantForGuests =
+      [...history]
+        .reverse()
+        .find((item) => item.role === "assistant")
+        ?.content || "";
+
+    if (
+      /guest count|how many guests|number of guests|guests will be attending/i.test(
+        lastAssistantForGuests
+      )
+    ) {
+      const bareGuestMatch =
+        userMessage.trim().match(
+          /^(?:actually\s+|change(?:\s+it)?\s+to\s+|make\s+it\s+)?(\d{1,3})$/i
+        );
+
+      if (bareGuestMatch) {
+        guestCountValue = bareGuestMatch[1];
+      }
+    }
+  }
 
 
   /*
@@ -1540,7 +1597,7 @@ function extractBookingInfo(userMessage, history) {
 
   const info = {
     guests:
-      guestMatch ? guestMatch[1] : "",
+      guestCountValue,
 
     serviceType,
 
