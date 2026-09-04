@@ -60,11 +60,154 @@ export async function onRequestPost({ request, env }) {
     );
   }
 
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailPattern =
+    /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,24}$/i;
 
-  if (!emailPattern.test(email)) {
+  const emailDomain = email.split("@")[1] || "";
+  const emailTld =
+    emailDomain.split(".").pop()?.toLowerCase() || "";
+
+  const obviousTypoTlds = new Set([
+    "comm",
+    "con",
+    "cmo",
+    "coom",
+    "nett",
+    "orgg"
+  ]);
+
+  if (
+    !emailPattern.test(email) ||
+    email.includes("..") ||
+    obviousTypoTlds.has(emailTld)
+  ) {
     return json(
-      { ok: false, error: "Please enter a valid email." },
+      {
+        ok: false,
+        error:
+          "Please enter a valid email address and check for typing mistakes."
+      },
+      400
+    );
+  }
+
+  if (phone) {
+    let phoneDigits = phone.replace(/\D/g, "");
+
+    if (
+      phoneDigits.length === 11 &&
+      phoneDigits.startsWith("1")
+    ) {
+      phoneDigits = phoneDigits.slice(1);
+    }
+
+    const validUsPhone =
+      /^[2-9]\d{2}[2-9]\d{6}$/.test(phoneDigits);
+
+    const repeatedDigits =
+      /^(\d)\1{9}$/.test(phoneDigits);
+
+    if (!validUsPhone || repeatedDigits) {
+      return json(
+        {
+          ok: false,
+          error:
+            "Please enter a valid 10-digit U.S. phone number."
+        },
+        400
+      );
+    }
+  }
+
+  if (!/^\d+$/.test(guests)) {
+    return json(
+      {
+        ok: false,
+        error:
+          "Please enter a valid number of guests."
+      },
+      400
+    );
+  }
+
+  const guestCount = Number(guests);
+
+  if (
+    !Number.isInteger(guestCount) ||
+    guestCount < 1 ||
+    guestCount > 1000
+  ) {
+    return json(
+      {
+        ok: false,
+        error:
+          "Please enter a valid number of guests."
+      },
+      400
+    );
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return json(
+      {
+        ok: false,
+        error:
+          "Please enter a valid event date."
+      },
+      400
+    );
+  }
+
+  const [year, month, day] =
+    date.split("-").map(Number);
+
+  const eventDate =
+    new Date(Date.UTC(year, month - 1, day));
+
+  const validDate =
+    eventDate.getUTCFullYear() === year &&
+    eventDate.getUTCMonth() === month - 1 &&
+    eventDate.getUTCDate() === day;
+
+  const todayParts =
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(new Date());
+
+  const part = (type) =>
+    todayParts.find((item) => item.type === type)?.value || "";
+
+  const todayString =
+    `${part("year")}-${part("month")}-${part("day")}`;
+
+  if (!validDate || date < todayString) {
+    return json(
+      {
+        ok: false,
+        error:
+          "Please enter a valid current or future event date."
+      },
+      400
+    );
+  }
+
+  const allowedServices = new Set([
+    "Private Chef",
+    "Full-Service Catering",
+    "Drop-off Catering",
+    "Cooking Class"
+  ]);
+
+  if (!allowedServices.has(service)) {
+    return json(
+      {
+        ok: false,
+        error:
+          "Please select a valid service."
+      },
       400
     );
   }
@@ -79,7 +222,7 @@ Name: ${name}
 Email: ${email}
 Phone: ${phone || "Not provided"}
 Event date: ${date}
-Number of guests: ${guests}
+Number of guests: ${guestCount}
 Service: ${service}
 Location: ${location}
 Dietary restrictions: ${dietary || "None provided"}
