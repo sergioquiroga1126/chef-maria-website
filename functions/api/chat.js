@@ -129,6 +129,23 @@ Please choose Full-Service Catering or Drop-off Catering.`
     }
 
     /*
+     * EVENT TYPE / OCCASION
+     *
+     * After guest count and service type, require the customer
+     * to tell us what kind of event they are planning.
+     */
+    if (
+      bookingInfo.guests &&
+      bookingInfo.serviceType &&
+      !bookingInfo.eventType
+    ) {
+      return jsonResponse({
+        answer:
+          "What type of event is this? For example: birthday, anniversary, family dinner, corporate event, graduation, wedding, or another occasion."
+      });
+    }
+
+    /*
      * ENFORCE FOOD SELECTION
      *
      * A cuisine name alone is not a complete menu.
@@ -512,6 +529,7 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
       const missingFields = [
         ["guest count", bookingInfo.guests],
         ["service type", bookingInfo.serviceType],
+        ["type of event", bookingInfo.eventType],
         ["location", bookingInfo.cityLocation],
         ["date", bookingInfo.date],
         ["time", bookingInfo.time],
@@ -569,6 +587,7 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
 
 Guest Count: ${bookingInfo.guests}
 Service Type: ${bookingInfo.serviceType}
+Event Type: ${bookingInfo.eventType}
 City / Location: ${bookingInfo.cityLocation}
 Date: ${bookingInfo.date}
 Time: ${bookingInfo.time}
@@ -617,14 +636,15 @@ Help customers with private chef service, catering, menu ideas, pricing question
 Booking detail order:
 1. guest count
 2. service type
-3. city/location
-4. date
-5. time
-6. cuisine preference AND specific food/menu choices
-7. allergies or dietary restrictions
-8. name
-9. email
-10. phone
+3. type of event / occasion
+4. city/location
+5. date
+6. time
+7. cuisine preference AND specific food/menu choices
+8. allergies or dietary restrictions
+9. name
+10. email
+11. phone
 
 Chef Maria service area:
 Miami, Fort Lauderdale, Boca Raton, Palm Beach, Broward County, and South Florida.
@@ -643,6 +663,8 @@ Client and event conduct:
 
 Booking rules:
 - Ask for one missing booking detail at a time.
+- Type of event / occasion is REQUIRED. Examples include birthday, anniversary, family dinner, corporate event, graduation, wedding, retirement party, baby shower, or another celebration.
+- After service type, ask what type of event or occasion this is before moving to location.
 - If you ask for a required booking detail and the customer answers with a different detail, acknowledge the extra information if useful but continue asking for the required missing detail.
 - If event time is missing, do NOT move to cuisine, menu, allergies, contact information, summary, or confirmation until a valid time with AM or PM has been collected.
 - NEVER show a booking summary or ask for final confirmation while ANY required booking field is still missing.
@@ -752,6 +774,7 @@ Email: cucinadiverona@gmail.com`
       const missingFields = [
         ["guest count", bookingInfo.guests],
         ["service type", bookingInfo.serviceType],
+        ["type of event", bookingInfo.eventType],
         ["location", bookingInfo.cityLocation],
         ["date", bookingInfo.date],
         ["time", bookingInfo.time],
@@ -1071,6 +1094,63 @@ function extractBookingInfo(userMessage, history) {
     ) {
       serviceType = "Drop-off Catering";
     }
+  }
+
+
+  /*
+   * EVENT TYPE / OCCASION
+   */
+  let eventType =
+    findAnswerAfterPrompt(
+      history,
+      /type of event|what kind of event|occasion|what are you celebrating|event is this/i
+    );
+
+  /*
+   * Do not accidentally save another booking field as the event type
+   * when the customer answers the wrong question.
+   */
+  if (
+    eventType &&
+    /^(private chef|chef|catering|full[- ]?service catering|drop[- ]?off catering|cooking class|miami|miami beach|fort lauderdale|boca raton|palm beach|west palm beach|pompano beach|deerfield beach|delray beach|italian|mexican|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean|\d+|\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})$/i.test(
+      eventType.trim()
+    )
+  ) {
+    eventType = "";
+  }
+
+  const eventTypePattern =
+    /\b(birthday(?: party)?|anniversary(?: dinner| party)?|family dinner|dinner party|corporate event|corporate dinner|business dinner|graduation(?: party)?|wedding(?: reception)?|rehearsal dinner|engagement(?: party)?|retirement(?: party)?|baby shower|bridal shower|holiday party|christmas party|thanksgiving dinner|baptism|communion|confirmation|memorial|celebration of life|fundraiser|cocktail party|private dinner)\b/i;
+
+  if (!eventType) {
+    const eventCandidates = [
+      ...userMessages,
+      userMessage
+    ];
+
+    for (let i = eventCandidates.length - 1; i >= 0; i--) {
+      const match =
+        (eventCandidates[i] || "").match(
+          eventTypePattern
+        );
+
+      if (match) {
+        eventType = match[1];
+        break;
+      }
+    }
+  }
+
+  if (eventType) {
+    eventType =
+      eventType
+        .replace(/^(?:this is|it is|it's|its)\s+/i, "")
+        .trim()
+        .replace(/\s+/g, " ");
+
+    eventType =
+      eventType.charAt(0).toUpperCase() +
+      eventType.slice(1);
   }
 
 
@@ -1464,6 +1544,8 @@ function extractBookingInfo(userMessage, history) {
 
     serviceType,
 
+    eventType,
+
     cityLocation,
 
     date:
@@ -1497,6 +1579,7 @@ function extractBookingInfo(userMessage, history) {
     Boolean(
       info.guests &&
       info.serviceType &&
+      info.eventType &&
       info.cityLocation &&
       info.date &&
       info.time &&
@@ -1567,6 +1650,7 @@ async function sendBookingEmail({ resendApiKey, chefEmail, bookingInfo }) {
 
     <p><strong>Guest count:</strong> ${bookingInfo.guests || "Not provided"}</p>
     <p><strong>Service type:</strong> ${bookingInfo.serviceType || "Not provided"}</p>
+    <p><strong>Type of event:</strong> ${bookingInfo.eventType || "Not provided"}</p>
     <p><strong>City / Location:</strong> ${bookingInfo.cityLocation || "Not provided"}</p>
     <p><strong>Date:</strong> ${bookingInfo.date || "Not provided"}</p>
     <p><strong>Time:</strong> ${bookingInfo.time || "Not provided"}</p>
