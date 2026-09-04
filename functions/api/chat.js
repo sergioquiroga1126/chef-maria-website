@@ -879,27 +879,69 @@ function extractBookingInfo(userMessage, history) {
     userMessage
   ].join("\n");
 
-  const cuisineMatch =
-    allUserText.match(
-      /\b(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)\b/i
-    );
+  /*
+   * CUISINE
+   *
+   * Use the newest positive cuisine choice.
+   * Do not treat phrases such as "no Italian"
+   * or "not Mexican" as cuisine selections.
+   */
+  const cuisinePattern =
+    /\b(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)\b/gi;
 
   let cuisinePreference = "";
 
-  if (cuisineMatch) {
-    const rawCuisine =
-      cuisineMatch[1].toLowerCase();
+  const cuisineCandidates = [
+    ...userMessages,
+    userMessage
+  ];
 
-    if (/^mexic/.test(rawCuisine)) {
-      cuisinePreference = "Mexican";
-    } else {
-      cuisinePreference =
-        rawCuisine.charAt(0).toUpperCase() +
-        rawCuisine.slice(1);
+  for (let i = cuisineCandidates.length - 1; i >= 0; i--) {
+    const candidate =
+      cuisineCandidates[i] || "";
+
+    const matches =
+      [...candidate.matchAll(cuisinePattern)];
+
+    for (let j = matches.length - 1; j >= 0; j--) {
+      const match = matches[j];
+
+      const prefix =
+        candidate
+          .slice(
+            Math.max(0, match.index - 35),
+            match.index
+          )
+          .toLowerCase();
+
+      const negated =
+        /\b(?:no|not|without)\s*$/.test(prefix) ||
+        /\b(?:do not|don't|dont)\s+(?:want\s+)?$/.test(prefix);
+
+      if (negated) {
+        continue;
+      }
+
+      const rawCuisine =
+        match[1].toLowerCase();
+
+      if (/^mexic/.test(rawCuisine)) {
+        cuisinePreference = "Mexican";
+      } else {
+        cuisinePreference =
+          rawCuisine.charAt(0).toUpperCase() +
+          rawCuisine.slice(1);
+      }
+
+      break;
+    }
+
+    if (cuisinePreference) {
+      break;
     }
   }
 
-  const specialCuisineReview =
+  let specialCuisineReview =
     Boolean(
       cuisinePreference &&
       cuisinePreference !== "Italian"
@@ -910,19 +952,29 @@ function extractBookingInfo(userMessage, history) {
    * GUEST COUNT
    *
    * The newest guest count always wins.
-   * This allows corrections such as:
-   * "14 people" -> "actually 9 people"
+   * Bare replies such as "9" are remembered when
+   * they followed a guest-count question.
    */
   let guestCountValue = "";
 
-  const guestCandidates = [
-    ...userMessages,
-    userMessage
+  const guestConversation = [
+    ...history,
+    {
+      role: "user",
+      content: userMessage
+    }
   ];
 
-  for (let i = guestCandidates.length - 1; i >= 0; i--) {
+  for (let i = guestConversation.length - 1; i >= 0; i--) {
+    const item =
+      guestConversation[i];
+
+    if (item?.role !== "user") {
+      continue;
+    }
+
     const candidate =
-      guestCandidates[i] || "";
+      (item.content || "").trim();
 
     const explicitMatches = [
       ...candidate.matchAll(
@@ -942,44 +994,30 @@ function extractBookingInfo(userMessage, history) {
       );
 
     if (partyMatch) {
-      guestCountValue = partyMatch[1];
+      guestCountValue =
+        partyMatch[1];
       break;
     }
 
-    const correctionMatch =
-      candidate.match(
-        /\b(?:change|update|correct|make|actually|instead|saying)\b.{0,30}\b(\d{1,3})\s*(?:people|guests?)\b/i
+    const previous =
+      guestConversation[i - 1];
+
+    const previousAssistantAskedGuests =
+      previous?.role === "assistant" &&
+      /guest count|how many guests|number of guests|guests will be attending/i.test(
+        previous.content || ""
       );
 
-    if (correctionMatch) {
-      guestCountValue = correctionMatch[1];
-      break;
-    }
-  }
-
-  /*
-   * Allow a bare number only when the assistant
-   * specifically asked for the guest count.
-   */
-  if (!guestCountValue) {
-    const lastAssistantForGuests =
-      [...history]
-        .reverse()
-        .find((item) => item.role === "assistant")
-        ?.content || "";
-
-    if (
-      /guest count|how many guests|number of guests|guests will be attending/i.test(
-        lastAssistantForGuests
-      )
-    ) {
-      const bareGuestMatch =
-        userMessage.trim().match(
+    if (previousAssistantAskedGuests) {
+      const bareMatch =
+        candidate.match(
           /^(?:actually\s+|change(?:\s+it)?\s+to\s+|make\s+it\s+)?(\d{1,3})$/i
         );
 
-      if (bareGuestMatch) {
-        guestCountValue = bareGuestMatch[1];
+      if (bareMatch) {
+        guestCountValue =
+          bareMatch[1];
+        break;
       }
     }
   }
@@ -1346,6 +1384,16 @@ function extractBookingInfo(userMessage, history) {
       .map(([dish]) => dish);
 
   /*
+   * If the customer ultimately chooses several dishes
+   * from Chef Maria's approved Italian menu, treat that
+   * as a clear switch to Italian cuisine.
+   */
+  if (customerSelectedDishes.length >= 2) {
+    cuisinePreference = "Italian";
+    specialCuisineReview = false;
+  }
+
+  /*
    * If customer asked Chef Maria AI to choose,
    * find the latest ACTUAL recommended menu.
    *
@@ -1423,14 +1471,17 @@ function extractBookingInfo(userMessage, history) {
 
   const specialCuisineFoodIsReal =
     specialCuisineFoodAnswer &&
-    !/^(italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)$/i.test(
+    !/^(?:no\s+|not\s+|without\s+)?(?:italian|mexic(?:an|am|ain|n)|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean)$/i.test(
       specialCuisineFoodAnswer.trim()
     ) &&
     !/^(you choose|you decide|chef maria can decide|chef maria may decide|choose for me|surprise me|whatever chef maria recommends|all of them|everything|ok|okay|yes|great|sounds good)$/i.test(
       specialCuisineFoodAnswer.trim()
     );
 
-  if (
+  if (customerSelectedDishes.length > 0) {
+    menuPreference =
+      customerSelectedDishes.join(", ");
+  } else if (
     specialCuisineReview &&
     specialCuisineFoodIsReal
   ) {
@@ -1442,9 +1493,6 @@ function extractBookingInfo(userMessage, history) {
   ) {
     menuPreference =
       combinedSpecialCuisineFood;
-  } else if (customerSelectedDishes.length > 0) {
-    menuPreference =
-      customerSelectedDishes.join(", ");
   } else if (assistantSelectedDishes.length > 0) {
     menuPreference =
       assistantSelectedDishes.join(", ");
@@ -1554,7 +1602,9 @@ function extractBookingInfo(userMessage, history) {
     const foundBefore =
       dietaryDetails.length;
 
-    if (/\b(?:gluten[- ]?free|glutten[- ]?free)\b/i.test(candidate)) {
+    if (
+      /\b(?:gluten|glutten)\s*-?\s*g?free+\b/i.test(candidate)
+    ) {
       addDietaryDetail("Gluten-free");
     }
 
@@ -1640,9 +1690,19 @@ function extractBookingInfo(userMessage, history) {
         );
 
       if (allergicToMatch) {
-        addDietaryDetail(
-          `Allergic to ${allergicToMatch[1].trim()}`
-        );
+        const allergen =
+          allergicToMatch[1].trim();
+
+        const obviouslyNotFood =
+          /^(?:people|person|persons|humans?|men|women|boys|girls|kids|children|adults|guests?|customers?|clients?|chefs?|servers?|waiters?|waitresses?|politics|work|working|mondays?)$/i.test(
+            allergen
+          );
+
+        if (!obviouslyNotFood) {
+          addDietaryDetail(
+            `Allergic to ${allergen}`
+          );
+        }
       }
     }
 
