@@ -16,3 +16,222 @@
 @media(max-width:860px){.site-header{grid-template-columns:1fr auto;min-height:76px}.main-nav{grid-column:1/-1;grid-row:2;width:100%;justify-content:center;padding:7px 0 4px;border-top:1px solid var(--line)}.header-cta{justify-self:end}.hero{grid-template-columns:1fr}.hero-copy{order:2;padding:70px 42px 76px}.hero-visual{min-height:560px;order:1}.trust-strip,.service-grid,.process-grid{grid-template-columns:1fr}.trust-item,.process-step{border-right:0;border-bottom:1px solid rgba(255,255,255,.12)}.process-step{border-bottom-color:var(--line)}.trust-item:last-child,.process-step:last-child{border-bottom:0}.story-section,.class-feature,.contact-section{grid-template-columns:1fr}.story-images{max-width:660px}.signature-grid{grid-template-columns:1fr 1fr}.class-image{min-height:500px}.site-footer{grid-template-columns:1fr;text-align:center}.footer-links{justify-self:center}}
 @media(max-width:620px){.site-header{padding:10px 18px}.brand-name{font-size:1.7rem}.brand-tag{font-size:.56rem}.header-cta{min-height:40px;padding:0 13px;font-size:.62rem}.main-nav{justify-content:flex-start;gap:20px;overflow-x:auto;scrollbar-width:none}.main-nav::-webkit-scrollbar{display:none}.main-nav a{white-space:nowrap;font-size:.65rem}.hero-visual{min-height:430px}.hero-note{left:18px;bottom:18px;width:calc(100% - 36px)}.hero-copy{padding:58px 24px 64px}.hero h1{font-size:clamp(3.4rem,16vw,4.7rem)}.hero-actions{display:grid}.button-primary,.button-secondary{width:100%}.services-section,.story-section,.menu-section,.process-section{padding:78px 22px}.service-card figure{height:285px}.story-section{gap:45px}.story-images{min-height:470px}.story-main{width:88%;height:430px}.story-detail{width:48%;height:185px;border-width:7px}.statement-band{padding:70px 26px}.signature-grid{grid-template-columns:1fr}.signature-dish{min-height:auto}.menu-drawers ul{columns:1}.class-image{min-height:420px}.class-copy{padding:70px 24px}.contact-intro,.inquiry-wrap{padding:70px 24px}.form-grid{grid-template-columns:1fr}.form-field.full{grid-column:auto}.chef-ai-button{right:14px;bottom:14px;min-height:48px;padding:0 16px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+/* ===== FINAL PREMIUM POLISH ===== */
+
+section[id] {
+  scroll-margin-top: 115px;
+}
+
+.site-header {
+  grid-template-columns: minmax(190px, auto) minmax(0, 1fr) auto;
+  gap: clamp(18px, 3vw, 42px);
+  padding-left: clamp(20px, 4vw, 64px);
+  padding-right: clamp(20px, 4vw, 64px);
+}
+
+.main-nav {
+  gap: clamp(18px, 2.3vw, 34px);
+}
+
+.header-cta {
+  white-space: nowrap;
+}
+
+.hero,
+.services-section,
+.story-section,
+.menu-section,
+.process-section,
+.contact-section {
+  overflow: hidden;
+}
+
+.service-card,
+.signature-dish,
+.inquiry-form {
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.service-card {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.service-card:hover {
+  transform: translateY(-7px);
+}
+
+.signature-dish {
+  position: relative;
+}
+
+.signature-dish::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 3px;
+  background: var(--wine);
+  transition: width .25s ease;
+}
+
+.signature-dish:hover::before {
+  width: 100%;
+}
+
+.button-primary,
+.button-secondary,
+.header-cta,
+.contact-ai,
+.form-submit {
+  border-radius: 5px;
+}
+
+.button-primary,
+.header-cta,
+.form-submit {
+  box-shadow: 0 8px 22px rgba(75, 17, 18, .12);
+}
+
+.button-primary:hover,
+.header-cta:hover,
+.form-submit:hover {
+  box-shadow: 0 12px 28px rgba(75, 17, 18, .20);
+}
+
+input,
+select,
+textarea {
+  border-radius: 6px;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: #b8aa9b;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid rgba(184, 154, 103, .55);
+  outline-offset: 3px;
+}
+
+.story-main,
+.story-detail,
+.class-image img {
+  transition: transform .5s ease;
+}
+
+.story-main:hover,
+.story-detail:hover {
+  transform: scale(1.015);
+}
+
+.contact-details a {
+  transition: color .2s ease;
+}
+
+.contact-details a:hover {
+  color: #dfbf8b;
+}
+
+.form-status:not(:empty) {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--gold);
+  background: rgba(184, 154, 103, .10);
+}
+
+.chef-ai-button {
+  backdrop-filter: blur(10px);
+}
+
+@media (max-width: 980px) {
+  .site-header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .main-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 620px) {
+  section[id] {
+    scroll-margin-top: 125px;
+  }
+
+  .site-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .brand-name {
+    font-size: 1.6rem;
+  }
+
+  .header-cta {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .hero-copy {
+    padding-top: 52px;
+    padding-bottom: 58px;
+  }
+
+  .hero-meta {
+    line-height: 1.6;
+  }
+
+  .service-card {
+    border-radius: 8px;
+  }
+
+  .contact-details a {
+    font-size: 1.22rem;
+    overflow-wrap: anywhere;
+  }
+
+  .chef-ai-button {
+    max-width: calc(100vw - 28px);
+  }
+}
+
+
+/* Keep Chef Maria's head visible in Private Dinner card */
+.service-card:first-child img {
+  object-position: center 18%;
+}
+
+
+/* Keep Chef Maria's head visible in Private Dinner card */
+.service-card:first-child img {
+  object-position: center 18%;
+}
+
+
+/* Better crop for Italian Catering photo */
+.service-card:nth-child(2) img {
+  object-position: center 12%;
+}
+
+
+/* Better crop for Italian Catering photo */
+.service-card:nth-child(2) img {
+  object-position: center 12%;
+}
+
+
+/* Keep full head visible in Italian Catering card */
+.service-card:nth-child(2) img {
+  object-position: center top !important;
+}
