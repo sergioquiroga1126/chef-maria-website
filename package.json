@@ -1,4 +1,9 @@
 {
+  "name": "chef_maria_antonella_style_v8",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
   "dependencies": {
     "resend": "^6.12.4"
   }

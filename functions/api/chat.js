@@ -1,3 +1,5 @@
+import { saveLead } from "../_shared/leads.js";
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -560,6 +562,23 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
       }
 
       if (emailSent) {
+        await saveLead(env, {
+          source: "chatbot",
+          name: bookingInfo.name,
+          email: bookingInfo.email,
+          phone: bookingInfo.phone,
+          eventDate: bookingInfo.date,
+          eventTime: bookingInfo.time,
+          guestCount: bookingInfo.guests,
+          serviceType: bookingInfo.serviceType,
+          eventType: bookingInfo.eventType,
+          location: bookingInfo.cityLocation,
+          cuisine: bookingInfo.cuisinePreference,
+          menuPreferences: bookingInfo.menuPreference,
+          dietaryRestrictions: bookingInfo.allergies,
+          message: "Submitted through Chef Maria AI."
+        });
+
         return jsonResponse({
           answer:
             "✓ INQUIRY SENT SUCCESSFULLY\n\nYour event information has been emailed directly to Chef Maria.\n\nChef Maria will personally review availability and final pricing and contact you using the email or phone number you provided.\n\nThis is an inquiry, not a confirmed booking yet.\n\nPhone: 561-692-1473\nEmail: cucinadiverona@gmail.com"

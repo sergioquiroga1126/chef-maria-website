@@ -1,3 +1,5 @@
+import { saveLead } from "../_shared/leads.js";
+
 export async function onRequestPost({ request, env }) {
   const json = (data, status = 200) =>
     new Response(JSON.stringify(data), {
@@ -265,6 +267,23 @@ ${message || "No additional message"}
       502
     );
   }
+
+  await saveLead(env, {
+    source: "website_form",
+    name,
+    email,
+    phone,
+    eventDate: date,
+    eventTime: "",
+    guestCount,
+    serviceType: service,
+    eventType: "",
+    location,
+    cuisine: "",
+    menuPreferences: "",
+    dietaryRestrictions: dietary,
+    message
+  });
 
   return json({
     ok: true,

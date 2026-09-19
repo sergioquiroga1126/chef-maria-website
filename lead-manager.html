@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <title>Chef Maria Lead Manager</title>
+  <link rel="stylesheet" href="lead-manager.css" />
+</head>
+<body>
+  <main class="shell">
+    <section id="login-panel" class="login-panel" aria-labelledby="login-title">
+      <div class="brand-mark">CM</div>
+      <p class="eyebrow">Private business dashboard</p>
+      <h1 id="login-title">Chef Maria Lead Manager</h1>
+      <p class="login-copy">
+        Enter the private Lead Manager key to view customer inquiries.
+      </p>
+      <form id="login-form" class="login-form">
+        <label for="access-key">Access key</label>
+        <input
+          id="access-key"
+          name="accessKey"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+        <button type="submit">Open Lead Manager</button>
+        <p id="login-message" class="form-message" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section id="dashboard" class="dashboard" hidden>
+      <header class="dashboard-header">
+        <div>
+          <p class="eyebrow">Chef Maria private command center</p>
+          <h1>Lead Manager</h1>
+          <p class="header-copy">Review inquiries, track proposals, and keep follow-ups moving.</p>
+        </div>
+        <div class="header-actions">
+          <button id="refresh-button" class="secondary-button" type="button">Refresh</button>
+          <button id="logout-button" class="text-button" type="button">Lock dashboard</button>
+        </div>
+      </header>
+
+      <section class="summary-grid" aria-label="Lead summary">
+        <article class="summary-card"><span>All leads</span><strong id="count-total">0</strong></article>
+        <article class="summary-card"><span>New</span><strong id="count-new">0</strong></article>
+        <article class="summary-card attention"><span>Priority</span><strong id="count-priority">0</strong></article>
+        <article class="summary-card"><span>Proposals sent</span><strong id="count-proposals">0</strong></article>
+        <article class="summary-card success"><span>Booked</span><strong id="count-booked">0</strong></article>
+      </section>
+
+      <section class="controls" aria-label="Lead filters">
+        <label class="search-field">
+          <span>Search</span>
+          <input id="search-input" type="search" placeholder="Name, email, phone, city…" />
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="status-filter">
+            <option value="">All active and closed</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="proposal_sent">Proposal Sent</option>
+            <option value="booked">Booked</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+      </section>
+
+      <p id="dashboard-message" class="dashboard-message" aria-live="polite"></p>
+      <section id="lead-list" class="lead-list" aria-label="Customer leads"></section>
+    </section>
+  </main>
+
+  <script type="module" src="lead-manager.js"></script>
+</body>
+</html>
