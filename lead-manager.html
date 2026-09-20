@@ -74,6 +74,152 @@
     </section>
   </main>
 
+  <dialog id="proposal-dialog" class="proposal-dialog">
+    <div class="proposal-modal">
+      <header class="proposal-modal-header">
+        <div>
+          <p class="eyebrow">Private draft workspace</p>
+          <h2 id="proposal-dialog-title">Create Proposal</h2>
+          <p id="proposal-client-line" class="proposal-client-line"></p>
+        </div>
+        <button id="proposal-close" class="dialog-close" type="button" aria-label="Close proposal editor">×</button>
+      </header>
+
+      <form id="proposal-form" class="proposal-form">
+        <input id="proposal-lead-id" type="hidden" />
+
+        <section class="proposal-section">
+          <h3>Proposal details</h3>
+          <div class="proposal-grid">
+            <label class="span-2">
+              <span>Proposal title</span>
+              <input id="proposal-title" maxlength="160" required />
+            </label>
+            <label>
+              <span>Guests</span>
+              <input id="proposal-guests" type="number" min="1" max="1000" required />
+            </label>
+            <label>
+              <span>Price per guest</span>
+              <input id="proposal-price-per-guest" type="number" min="0" step="0.01" required />
+            </label>
+          </div>
+          <p id="proposal-guidance" class="pricing-guidance"></p>
+        </section>
+
+        <section class="proposal-section">
+          <h3>Staffing and totals</h3>
+          <div class="proposal-grid proposal-calculation-grid">
+            <label>
+              <span>Servers</span>
+              <input id="proposal-server-count" type="number" min="0" max="50" value="0" />
+            </label>
+            <label>
+              <span>Hours per server</span>
+              <input id="proposal-server-hours" type="number" min="0" max="24" step="0.5" value="0" />
+            </label>
+            <label>
+              <span>Hourly rate</span>
+              <input id="proposal-server-rate" type="number" min="0" step="0.01" value="40" />
+            </label>
+            <div class="calculated-field">
+              <span>Staffing</span>
+              <strong id="proposal-staffing-subtotal">$0.00</strong>
+            </div>
+            <label>
+              <span>Additional charge label</span>
+              <input id="proposal-additional-label" maxlength="100" placeholder="Travel, rentals, service fee…" />
+            </label>
+            <label>
+              <span>Additional amount</span>
+              <input id="proposal-additional-amount" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <div class="calculated-field">
+              <span>Food subtotal</span>
+              <strong id="proposal-food-subtotal">$0.00</strong>
+            </div>
+            <div class="calculated-field grand-total-field">
+              <span>Estimated total</span>
+              <strong id="proposal-total">$0.00</strong>
+            </div>
+          </div>
+          <p class="staffing-note">Service staff use a four-hour minimum at $40 per hour unless Chef Maria changes the rate.</p>
+        </section>
+
+        <section class="proposal-section">
+          <h3>Menu and notes</h3>
+          <div class="proposal-grid">
+            <label class="span-2">
+              <span>Proposed menu</span>
+              <textarea id="proposal-menu" rows="5" maxlength="4000"></textarea>
+            </label>
+            <label class="span-2">
+              <span>Notes shown to the client</span>
+              <textarea id="proposal-client-notes" rows="4" maxlength="4000"></textarea>
+            </label>
+            <label class="span-2">
+              <span>Private internal notes</span>
+              <textarea id="proposal-internal-notes" rows="3" maxlength="2000" placeholder="These notes will not appear on the printed proposal."></textarea>
+            </label>
+          </div>
+        </section>
+
+        <p id="proposal-message" class="proposal-message" aria-live="polite"></p>
+        <footer class="proposal-actions">
+          <p>This is an editable draft. Saving or printing does not email the client.</p>
+          <div>
+            <button id="proposal-save" class="secondary-button" type="submit">Save Draft</button>
+            <button id="proposal-print" class="primary-button" type="button">Print / Save PDF</button>
+          </div>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <section id="proposal-print-view" class="proposal-print-view" aria-hidden="true">
+    <header class="print-header">
+      <div class="brand-mark">CM</div>
+      <div>
+        <p class="eyebrow">Italian private chef & catering</p>
+        <h1>Chef Maria</h1>
+        <p>South Florida · 561-692-1473 · cucinadiverona@gmail.com</p>
+      </div>
+    </header>
+    <div class="print-title-block">
+      <p>Prepared for <strong id="print-client-name"></strong></p>
+      <h2 id="print-title"></h2>
+      <p id="print-client-contact"></p>
+    </div>
+    <section class="print-event-grid">
+      <div><span>Event</span><strong id="print-event"></strong></div>
+      <div><span>Date & time</span><strong id="print-date-time"></strong></div>
+      <div><span>Location</span><strong id="print-location"></strong></div>
+      <div><span>Guests</span><strong id="print-guests"></strong></div>
+    </section>
+    <section class="print-section">
+      <h3>Proposed menu</h3>
+      <p id="print-menu" class="preserve-lines"></p>
+    </section>
+    <section class="print-section">
+      <h3>Investment</h3>
+      <table class="print-totals">
+        <tbody>
+          <tr><td id="print-food-description"></td><td id="print-food-subtotal"></td></tr>
+          <tr id="print-staffing-row"><td id="print-staffing-description"></td><td id="print-staffing-subtotal"></td></tr>
+          <tr id="print-additional-row"><td id="print-additional-description"></td><td id="print-additional-amount"></td></tr>
+          <tr class="print-grand-total"><td>Estimated total</td><td id="print-total"></td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section class="print-section">
+      <h3>Notes</h3>
+      <p id="print-client-notes" class="preserve-lines"></p>
+    </section>
+    <footer class="print-footer">
+      This proposal is subject to Chef Maria’s final menu review, availability, and confirmation. It is not a confirmed booking until accepted by Chef Maria.
+    </footer>
+  </section>
+
   <script type="module" src="lead-manager.js"></script>
 </body>
 </html>

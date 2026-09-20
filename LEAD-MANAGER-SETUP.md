@@ -8,10 +8,11 @@ the customer inquiry email can still be delivered to Chef Maria.
 
 1. In Cloudflare, open **Workers & Pages**.
 2. Open **D1 SQL database** and select **Create Database**.
-3. Name it `chef-maria-leads`.
+3. Name it `chef-maria-website` (or use the existing database with that name).
 4. Open the new database and select **Console**.
 5. Paste the contents of `migrations/0001_create_leads.sql` into the console.
 6. Select **Execute**.
+7. Paste the contents of `migrations/0002_create_proposals.sql` into the console and select **Execute** again.
 
 ## 2. Bind the database to the Pages project
 
@@ -19,7 +20,7 @@ the customer inquiry email can still be delivered to Chef Maria.
 2. Open **Settings > Bindings**.
 3. Add a **D1 database binding** to the Production environment.
 4. Set the variable name to exactly `DB`.
-5. Select the `chef-maria-leads` database.
+5. Select the `chef-maria-website` database.
 6. Save the binding.
 
 The code reads the database from `env.DB`, so the binding name must be exactly
@@ -56,6 +57,12 @@ current tab session. Selecting **Lock dashboard** removes it from the session.
 2. Confirm the inquiry email reaches Chef Maria.
 3. Refresh the Lead Manager and confirm the lead appears.
 4. Change its status to **Contacted**, add a private note, and save it.
+5. Select **Create Proposal**, review the prefilled details, and save a draft.
+6. Select **Print / Save PDF** and confirm the client version does not include private notes.
+
+Proposal drafts are private and never emailed automatically. Saving a draft
+recalculates its totals on the server. Chef Maria must review and approve every
+proposal before it is shared with a client.
 
 The available stages are:
 

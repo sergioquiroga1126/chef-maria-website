@@ -11,3 +11,7 @@
 /lead-manager.css
   Cache-Control: no-store
   X-Content-Type-Options: nosniff
+
+/proposal-calculator.js
+  Cache-Control: no-store
+  X-Content-Type-Options: nosniff

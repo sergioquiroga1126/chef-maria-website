@@ -376,7 +376,7 @@ textarea:focus {
 
 .lead-editor {
   display: grid;
-  grid-template-columns: minmax(180px, 0.35fr) minmax(180px, 0.35fr) 1fr auto;
+  grid-template-columns: minmax(160px, 0.3fr) minmax(160px, 0.3fr) 1fr auto auto;
   align-items: end;
   gap: 12px;
   padding: 18px 24px 22px;
@@ -396,6 +396,188 @@ textarea:focus {
 
 .save-button {
   white-space: nowrap;
+}
+
+.proposal-button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--brown);
+  border-radius: 10px;
+  color: #fff;
+  background: var(--brown);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.proposal-button:hover {
+  background: var(--brown-dark);
+}
+
+.proposal-dialog {
+  width: min(940px, calc(100% - 28px));
+  max-height: calc(100vh - 28px);
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.proposal-dialog::backdrop {
+  background: rgba(41, 27, 19, 0.64);
+  backdrop-filter: blur(3px);
+}
+
+.proposal-modal {
+  overflow: auto;
+  max-height: calc(100vh - 28px);
+}
+
+.proposal-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 30px 22px;
+  border-bottom: 1px solid var(--line);
+  background: #fbf7f1;
+}
+
+.proposal-modal-header h2 {
+  margin-bottom: 6px;
+  font-size: 2rem;
+}
+
+.proposal-client-line {
+  margin: 0;
+  color: var(--muted);
+}
+
+.dialog-close {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--brown);
+  background: #fff;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.proposal-form {
+  padding: 0 30px 30px;
+}
+
+.proposal-section {
+  padding: 26px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.proposal-section h3 {
+  margin: 0 0 16px;
+  color: var(--brown-dark);
+  font-family: Georgia, serif;
+  font-size: 1.25rem;
+}
+
+.proposal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.proposal-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.proposal-grid .span-2 {
+  grid-column: span 2;
+}
+
+.pricing-guidance,
+.staffing-note {
+  margin: 13px 0 0;
+  padding: 11px 13px;
+  border-radius: 10px;
+  color: var(--brown-dark);
+  background: var(--cream);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.proposal-calculation-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+}
+
+.calculated-field {
+  min-height: 70px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fbf7f1;
+}
+
+.calculated-field span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.calculated-field strong {
+  font-family: Georgia, serif;
+  font-size: 1.35rem;
+}
+
+.grand-total-field {
+  color: #fff;
+  border-color: var(--brown);
+  background: var(--brown);
+}
+
+.grand-total-field span {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.proposal-message {
+  min-height: 1.4em;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.proposal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 18px;
+}
+
+.proposal-actions p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.proposal-actions div {
+  display: flex;
+  gap: 10px;
+}
+
+.proposal-actions .primary-button,
+.proposal-actions .secondary-button {
+  min-width: 140px;
+  padding: 9px 15px;
+}
+
+.proposal-print-view {
+  display: none;
 }
 
 .empty-state {
@@ -419,6 +601,10 @@ textarea:focus {
   .lead-editor {
     grid-template-columns: 1fr 1fr;
   }
+
+  .proposal-calculation-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -439,7 +625,9 @@ textarea:focus {
   .header-actions,
   .controls,
   .lead-details,
-  .lead-editor {
+  .lead-editor,
+  .proposal-grid,
+  .proposal-calculation-grid {
     grid-template-columns: 1fr;
     width: 100%;
   }
@@ -450,5 +638,145 @@ textarea:focus {
 
   .detail.wide {
     grid-column: span 1;
+  }
+
+  .proposal-grid .span-2 {
+    grid-column: span 1;
+  }
+
+  .proposal-modal-header,
+  .proposal-form {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .proposal-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .proposal-actions div {
+    flex-direction: column;
+  }
+}
+
+@media print {
+  @page {
+    margin: 0.55in;
+  }
+
+  body {
+    color: #261b16;
+    background: #fff;
+  }
+
+  body > *:not(.proposal-print-view) {
+    display: none !important;
+  }
+
+  .proposal-print-view {
+    display: block;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+
+  .print-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #673b27;
+  }
+
+  .print-header .brand-mark {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  .print-header h1 {
+    margin: 0 0 4px;
+    font-size: 2.1rem;
+  }
+
+  .print-header p {
+    margin-bottom: 0;
+  }
+
+  .print-title-block {
+    padding: 28px 0 22px;
+  }
+
+  .print-title-block h2 {
+    margin: 8px 0;
+    font-size: 1.8rem;
+  }
+
+  .print-event-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 24px;
+    padding: 18px;
+    border: 1px solid #d8cabd;
+    border-radius: 10px;
+  }
+
+  .print-event-grid span {
+    display: block;
+    margin-bottom: 3px;
+    color: #71645d;
+    font-family: Arial, sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .print-section {
+    padding-top: 24px;
+  }
+
+  .print-section h3 {
+    margin: 0 0 10px;
+    color: #673b27;
+    font-size: 1.2rem;
+  }
+
+  .preserve-lines {
+    white-space: pre-line;
+    line-height: 1.55;
+  }
+
+  .print-totals {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .print-totals td {
+    padding: 9px 5px;
+    border-bottom: 1px solid #e2d8ce;
+  }
+
+  .print-totals td:last-child {
+    text-align: right;
+  }
+
+  .print-totals tr[hidden] {
+    display: none;
+  }
+
+  .print-grand-total td {
+    padding-top: 14px;
+    border-bottom: 0;
+    color: #452417;
+    font-size: 1.25rem;
+    font-weight: 800;
+  }
+
+  .print-footer {
+    margin-top: 34px;
+    padding-top: 14px;
+    border-top: 1px solid #d8cabd;
+    color: #71645d;
+    font-family: Arial, sans-serif;
+    font-size: 0.76rem;
+    line-height: 1.5;
   }
 }

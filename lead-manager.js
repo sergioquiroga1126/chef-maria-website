@@ -1,3 +1,8 @@
+import {
+  calculateProposalTotals,
+  pricingGuidanceFor
+} from "./proposal-calculator.js";
+
 const STORAGE_KEY = "chefMariaLeadManagerKey";
 const STATUS_LABELS = {
   new: "New",
@@ -18,9 +23,40 @@ const searchInput = document.getElementById("search-input");
 const statusFilter = document.getElementById("status-filter");
 const refreshButton = document.getElementById("refresh-button");
 const logoutButton = document.getElementById("logout-button");
+const proposalDialog = document.getElementById("proposal-dialog");
+const proposalForm = document.getElementById("proposal-form");
+const proposalDialogTitle = document.getElementById("proposal-dialog-title");
+const proposalClientLine = document.getElementById("proposal-client-line");
+const proposalCloseButton = document.getElementById("proposal-close");
+const proposalMessage = document.getElementById("proposal-message");
+const proposalSaveButton = document.getElementById("proposal-save");
+const proposalPrintButton = document.getElementById("proposal-print");
+
+const proposalFields = {
+  leadId: document.getElementById("proposal-lead-id"),
+  title: document.getElementById("proposal-title"),
+  guests: document.getElementById("proposal-guests"),
+  pricePerGuest: document.getElementById("proposal-price-per-guest"),
+  serverCount: document.getElementById("proposal-server-count"),
+  serverHours: document.getElementById("proposal-server-hours"),
+  serverRate: document.getElementById("proposal-server-rate"),
+  additionalLabel: document.getElementById("proposal-additional-label"),
+  additionalAmount: document.getElementById("proposal-additional-amount"),
+  menu: document.getElementById("proposal-menu"),
+  clientNotes: document.getElementById("proposal-client-notes"),
+  internalNotes: document.getElementById("proposal-internal-notes")
+};
+
+const proposalOutputs = {
+  guidance: document.getElementById("proposal-guidance"),
+  foodSubtotal: document.getElementById("proposal-food-subtotal"),
+  staffingSubtotal: document.getElementById("proposal-staffing-subtotal"),
+  total: document.getElementById("proposal-total")
+};
 
 let accessKey = sessionStorage.getItem(STORAGE_KEY) || "";
 let searchTimer;
+let activeProposalLead = null;
 
 function createElement(tag, className, text) {
   const element = document.createElement(tag);
@@ -97,6 +133,148 @@ function formatCreatedAt(value) {
     hour: "numeric",
     minute: "2-digit"
   }).format(date);
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD"
+  }).format(Number(value) || 0);
+}
+
+function integerFromLeadValue(value, fallback = 1) {
+  const parsed = Number.parseInt(String(value || "").replace(/[^\d]/g, ""), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function proposalValues() {
+  return {
+    title: proposalFields.title.value.trim(),
+    guestCount: proposalFields.guests.value,
+    pricePerGuest: proposalFields.pricePerGuest.value,
+    serverCount: proposalFields.serverCount.value,
+    serverHours: proposalFields.serverHours.value,
+    serverHourlyRate: proposalFields.serverRate.value,
+    additionalLabel: proposalFields.additionalLabel.value.trim(),
+    additionalAmount: proposalFields.additionalAmount.value,
+    menu: proposalFields.menu.value.trim(),
+    clientNotes: proposalFields.clientNotes.value.trim(),
+    internalNotes: proposalFields.internalNotes.value.trim()
+  };
+}
+
+function calculateVisibleProposal() {
+  try {
+    const totals = calculateProposalTotals(proposalValues());
+
+    if (totals.serverCount > 0 && Number(proposalFields.serverHours.value) < 4) {
+      proposalFields.serverHours.value = String(totals.serverHours);
+    }
+
+    proposalOutputs.foodSubtotal.textContent = formatCurrency(
+      totals.foodSubtotalCents / 100
+    );
+    proposalOutputs.staffingSubtotal.textContent = formatCurrency(
+      totals.staffingSubtotalCents / 100
+    );
+    proposalOutputs.total.textContent = formatCurrency(totals.totalCents / 100);
+    proposalMessage.textContent = "";
+    return totals;
+  } catch (error) {
+    proposalOutputs.foodSubtotal.textContent = "$0.00";
+    proposalOutputs.staffingSubtotal.textContent = "$0.00";
+    proposalOutputs.total.textContent = "$0.00";
+    proposalMessage.textContent = error.message;
+    return null;
+  }
+}
+
+function proposalGuidanceText(lead) {
+  const guidance = pricingGuidanceFor(lead.service_type);
+  const rule = lead.service_type === "Private Chef" && integerFromLeadValue(lead.guest_count) > 10
+    ? " Private chef service is limited to 10 guests; change this to catering before approval."
+    : "";
+
+  return `${lead.service_type || "Custom service"}: ${guidance.description}${rule}`;
+}
+
+function defaultProposalForLead(lead) {
+  const guidance = pricingGuidanceFor(lead.service_type);
+  const guestCount = integerFromLeadValue(lead.guest_count);
+  const needsSuggestedServer =
+    lead.service_type === "Full-Service Catering" && guestCount > 10;
+  const menuParts = [lead.menu_preferences, lead.cuisine]
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index);
+
+  return {
+    title: `${lead.event_type || lead.service_type || "Event"} Proposal — ${lead.name}`,
+    guestCount,
+    pricePerGuest: guidance.suggested ?? 0,
+    serverCount: needsSuggestedServer ? 1 : 0,
+    serverHours: needsSuggestedServer ? 4 : 0,
+    serverHourlyRate: 40,
+    additionalLabel: "",
+    additionalAmount: 0,
+    menu: menuParts.join("\n\n"),
+    clientNotes: "Final menu, pricing, and availability are subject to Chef Maria’s review and approval.",
+    internalNotes: ""
+  };
+}
+
+function fillProposalForm(lead, savedProposal) {
+  const proposal = savedProposal || defaultProposalForLead(lead);
+
+  proposalFields.leadId.value = String(lead.id);
+  proposalFields.title.value = proposal.title || "";
+  proposalFields.guests.value = proposal.guestCount || "";
+  proposalFields.pricePerGuest.value = proposal.pricePerGuest ?? 0;
+  proposalFields.serverCount.value = proposal.serverCount ?? 0;
+  proposalFields.serverHours.value = proposal.serverHours ?? 0;
+  proposalFields.serverRate.value = proposal.serverHourlyRate ?? 40;
+  proposalFields.additionalLabel.value = proposal.additionalLabel || "";
+  proposalFields.additionalAmount.value = proposal.additionalAmount ?? 0;
+  proposalFields.menu.value = proposal.menu || "";
+  proposalFields.clientNotes.value = proposal.clientNotes || "";
+  proposalFields.internalNotes.value = proposal.internalNotes || "";
+  proposalDialogTitle.textContent = savedProposal
+    ? "Edit Draft Proposal"
+    : "Create Proposal";
+  proposalClientLine.textContent = [
+    lead.name,
+    lead.email,
+    lead.event_date,
+    lead.location
+  ].filter(Boolean).join(" · ");
+  proposalOutputs.guidance.textContent = proposalGuidanceText(lead);
+  calculateVisibleProposal();
+  proposalMessage.textContent = savedProposal
+    ? `Draft last saved ${formatCreatedAt(savedProposal.updatedAt)}.`
+    : "Review every detail before saving this draft.";
+}
+
+async function openProposalEditor(lead, button) {
+  button.disabled = true;
+  button.textContent = "Loading…";
+  dashboardMessage.textContent = "Loading proposal draft…";
+
+  try {
+    const data = await apiFetch(`/api/leads/${lead.id}/proposal`);
+    activeProposalLead = data.lead || lead;
+    fillProposalForm(activeProposalLead, data.proposal);
+    proposalDialog.showModal();
+    dashboardMessage.textContent = "";
+  } catch (error) {
+    if (error.status === 401) {
+      lockDashboard("Your access key was not accepted.");
+      return;
+    }
+
+    dashboardMessage.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Create Proposal";
+  }
 }
 
 function addDetail(container, label, value, options = {}) {
@@ -232,7 +410,23 @@ function createLeadCard(lead) {
     }
   });
 
-  editor.append(statusLabel, followUpLabel, notesLabel, saveButton);
+  const proposalButton = createElement(
+    "button",
+    "proposal-button",
+    "Create Proposal"
+  );
+  proposalButton.type = "button";
+  proposalButton.addEventListener("click", () => {
+    openProposalEditor(lead, proposalButton);
+  });
+
+  editor.append(
+    statusLabel,
+    followUpLabel,
+    notesLabel,
+    saveButton,
+    proposalButton
+  );
   card.append(topLine, details, nextAction, editor);
   return card;
 }
@@ -318,6 +512,135 @@ statusFilter.addEventListener("change", loadLeads);
 searchInput.addEventListener("input", () => {
   window.clearTimeout(searchTimer);
   searchTimer = window.setTimeout(loadLeads, 350);
+});
+
+proposalForm.addEventListener("input", calculateVisibleProposal);
+
+proposalForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!activeProposalLead || !proposalForm.reportValidity()) {
+    return;
+  }
+
+  const totals = calculateVisibleProposal();
+
+  if (!totals) {
+    return;
+  }
+
+  proposalSaveButton.disabled = true;
+  proposalSaveButton.textContent = "Saving…";
+  proposalMessage.textContent = "Saving private draft…";
+
+  try {
+    const data = await apiFetch(
+      `/api/leads/${activeProposalLead.id}/proposal`,
+      {
+        method: "PUT",
+        body: JSON.stringify(proposalValues())
+      }
+    );
+    fillProposalForm(activeProposalLead, data.proposal);
+    proposalMessage.textContent = "Draft saved privately. It has not been emailed.";
+  } catch (error) {
+    if (error.status === 401) {
+      proposalDialog.close();
+      lockDashboard("Your access key was not accepted.");
+      return;
+    }
+
+    proposalMessage.textContent = error.message;
+  } finally {
+    proposalSaveButton.disabled = false;
+    proposalSaveButton.textContent = "Save Draft";
+  }
+});
+
+function setPrintText(id, value) {
+  document.getElementById(id).textContent = value || "—";
+}
+
+function prepareProposalPrintView() {
+  if (!activeProposalLead || !proposalForm.reportValidity()) {
+    return false;
+  }
+
+  const totals = calculateVisibleProposal();
+
+  if (!totals) {
+    return false;
+  }
+
+  const values = proposalValues();
+  const lead = activeProposalLead;
+  const staffRow = document.getElementById("print-staffing-row");
+  const additionalRow = document.getElementById("print-additional-row");
+
+  setPrintText("print-client-name", lead.name);
+  setPrintText("print-title", values.title);
+  setPrintText(
+    "print-client-contact",
+    [lead.email, lead.phone].filter(Boolean).join(" · ")
+  );
+  setPrintText("print-event", lead.event_type || lead.service_type);
+  setPrintText(
+    "print-date-time",
+    [lead.event_date, lead.event_time].filter(Boolean).join(" · ")
+  );
+  setPrintText("print-location", lead.location);
+  setPrintText("print-guests", String(totals.guestCount));
+  setPrintText("print-menu", values.menu || "Menu to be finalized with Chef Maria.");
+  setPrintText(
+    "print-food-description",
+    `${totals.guestCount} guests × ${formatCurrency(totals.pricePerGuestCents / 100)}`
+  );
+  setPrintText("print-food-subtotal", formatCurrency(totals.foodSubtotalCents / 100));
+
+  staffRow.hidden = totals.staffingSubtotalCents === 0;
+  setPrintText(
+    "print-staffing-description",
+    `${totals.serverCount} server${totals.serverCount === 1 ? "" : "s"} × ${totals.serverHours} hours × ${formatCurrency(totals.serverHourlyRateCents / 100)}`
+  );
+  setPrintText(
+    "print-staffing-subtotal",
+    formatCurrency(totals.staffingSubtotalCents / 100)
+  );
+
+  additionalRow.hidden = totals.additionalAmountCents === 0;
+  setPrintText(
+    "print-additional-description",
+    values.additionalLabel || "Additional charge"
+  );
+  setPrintText(
+    "print-additional-amount",
+    formatCurrency(totals.additionalAmountCents / 100)
+  );
+  setPrintText("print-total", formatCurrency(totals.totalCents / 100));
+  setPrintText(
+    "print-client-notes",
+    values.clientNotes || "Final details will be confirmed with Chef Maria."
+  );
+
+  return true;
+}
+
+proposalPrintButton.addEventListener("click", () => {
+  if (prepareProposalPrintView()) {
+    window.print();
+  }
+});
+
+proposalCloseButton.addEventListener("click", () => proposalDialog.close());
+proposalDialog.addEventListener("click", (event) => {
+  if (event.target === proposalDialog) {
+    proposalDialog.close();
+  }
+});
+proposalDialog.addEventListener("close", () => {
+  activeProposalLead = null;
+  proposalForm.reset();
+  proposalMessage.textContent = "";
 });
 
 if (accessKey) {
