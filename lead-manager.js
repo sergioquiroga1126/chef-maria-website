@@ -31,6 +31,7 @@ const proposalCloseButton = document.getElementById("proposal-close");
 const proposalMessage = document.getElementById("proposal-message");
 const proposalSaveButton = document.getElementById("proposal-save");
 const proposalPrintButton = document.getElementById("proposal-print");
+const proposalAgentButton = document.getElementById("proposal-agent");
 
 const proposalFields = {
   leadId: document.getElementById("proposal-lead-id"),
@@ -557,6 +558,66 @@ proposalForm.addEventListener("submit", async (event) => {
   }
 });
 
+function fillProposalFromAgent(proposal = {}) {
+  proposalFields.title.value = proposal.title || proposalFields.title.value;
+  proposalFields.guests.value = proposal.guestCount || proposalFields.guests.value;
+  proposalFields.pricePerGuest.value = proposal.pricePerGuest ?? proposalFields.pricePerGuest.value;
+  proposalFields.serverCount.value = proposal.serverCount ?? 0;
+  proposalFields.serverHours.value = proposal.serverHours ?? 0;
+  proposalFields.serverRate.value = proposal.serverHourlyRate ?? 40;
+  proposalFields.additionalLabel.value = proposal.additionalLabel || "";
+  proposalFields.additionalAmount.value = proposal.additionalAmount ?? 0;
+  proposalFields.menu.value = proposal.menu || proposalFields.menu.value;
+  proposalFields.clientNotes.value = proposal.clientNotes || proposalFields.clientNotes.value;
+  proposalFields.internalNotes.value = proposal.internalNotes || proposalFields.internalNotes.value;
+  calculateVisibleProposal();
+}
+
+async function generateProposalDraft() {
+  if (!activeProposalLead) {
+    return;
+  }
+
+  proposalAgentButton.disabled = true;
+  proposalAgentButton.textContent = "Analyzingâ€¦";
+  proposalMessage.textContent = "Chef Maria AI is preparing a private draftâ€¦";
+
+  try {
+    const data = await apiFetch(
+      `/api/leads/${activeProposalLead.id}/agent`,
+      {
+        method: "POST",
+        body: JSON.stringify({})
+      }
+    );
+
+    fillProposalFromAgent(data.proposal || {});
+
+    const notices = [
+      ...(data.warnings || []),
+      ...(data.missingInformation || []).map(
+        (item) => `Missing: ${item}`
+      )
+    ];
+
+    proposalMessage.textContent = notices.length
+      ? `AI draft loaded. Review before saving. ${notices.join(" ")}`
+      : "AI draft loaded. Review every detail, then select Save Draft.";
+  } catch (error) {
+    if (error.status === 401) {
+      proposalDialog.close();
+      lockDashboard("Your access key was not accepted.");
+      return;
+    }
+
+    proposalMessage.textContent = error.message;
+  } finally {
+    proposalAgentButton.disabled = false;
+    proposalAgentButton.textContent = "AI Draft Proposal";
+  }
+}
+
+proposalAgentButton.addEventListener("click", generateProposalDraft);
 function setPrintText(id, value) {
   document.getElementById(id).textContent = value || "—";
 }
