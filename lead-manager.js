@@ -579,8 +579,8 @@ async function generateProposalDraft() {
   }
 
   proposalAgentButton.disabled = true;
-  proposalAgentButton.textContent = "Analyzingâ€¦";
-  proposalMessage.textContent = "Chef Maria AI is preparing a private draftâ€¦";
+  proposalAgentButton.textContent = "Analyzing…";
+  proposalMessage.textContent = "Chef Maria AI is preparing a private draft…";
 
   try {
     const data = await apiFetch(

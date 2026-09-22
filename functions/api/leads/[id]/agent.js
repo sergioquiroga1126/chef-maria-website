@@ -31,10 +31,10 @@ const APPROVED_MENU = [
   "Short Ribs with Polenta",
   "Salmon Mediterranean Style",
   "Roasted Potatoes",
-  "SautÃ©ed Spinach",
+  "Sautéed Spinach",
   "Zucchini Trifolati",
   "Broccoli au Gratin",
-  "TiramisÃ¹",
+  "Tiramisù",
   "Mini Cannoli",
   "Rustic Apple Cake",
   "Semifreddo Amaretto",
@@ -112,7 +112,7 @@ function safeProposal(raw, lead) {
     title: cleanLeadValue(
       raw.title,
       160
-    ) || `${lead.event_type || serviceType || "Event"} Proposal â€” ${lead.name}`,
+    ) || `${lead.event_type || serviceType || "Event"} Proposal — ${lead.name}`,
     guestCount,
     pricePerGuest: normalizePrice(serviceType, guestCount, raw.pricePerGuest),
     serverCount,
@@ -124,7 +124,7 @@ function safeProposal(raw, lead) {
     clientNotes: cleanLeadValue(
       raw.clientNotes,
       4000
-    ) || "Final menu, pricing, and availability are subject to Chef Mariaâ€™s review and approval.",
+    ) || "Final menu, pricing, and availability are subject to Chef Maria’s review and approval.",
     internalNotes: cleanLeadValue(raw.internalNotes, 2000)
   };
 }
