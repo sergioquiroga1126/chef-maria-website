@@ -99,7 +99,8 @@ function normalizePrice(serviceType, guestCount, proposedPrice) {
 }
 
 function safeProposal(raw, lead) {
-  const guestCount = positiveInteger(raw.guestCount, Number.parseInt(lead.guest_count || "1", 10) || 1, 1000) || 1;
+  // The customer record is authoritative; model output must not change the booking size.
+  const guestCount = positiveInteger(Number.parseInt(lead.guest_count, 10), 1, 1000) || 1;
   const serviceType = cleanLeadValue(lead.service_type, 80);
   const serverCount = serviceType === "Full-Service Catering" && guestCount > 10
     ? Math.max(1, positiveInteger(raw.serverCount, 1, 50))
@@ -120,13 +121,20 @@ function safeProposal(raw, lead) {
     serverHourlyRate: 40,
     additionalLabel: cleanLeadValue(raw.additionalLabel, 100),
     additionalAmount: money(raw.additionalAmount, 0),
-    menu: cleanLeadValue(raw.menu, 4000),
+    menu: approvedMenuItems(raw.menuItems).join("\n"),
     clientNotes: cleanLeadValue(
       raw.clientNotes,
       4000
     ) || "Final menu, pricing, and availability are subject to Chef Maria’s review and approval.",
     internalNotes: cleanLeadValue(raw.internalNotes, 2000)
   };
+}
+
+function approvedMenuItems(items) {
+  if (!Array.isArray(items)) return [];
+  const approved = new Map(APPROVED_MENU.map((item) => [item.toLowerCase(), item]));
+  return [...new Set(items.map((item) => approved.get(String(item).trim().toLowerCase()))
+    .filter(Boolean))].slice(0, 20);
 }
 
 export async function onRequestPost({ request, env, params }) {
@@ -199,7 +207,7 @@ Return ONLY a JSON object with these keys:
   "serverHourlyRate": 40,
   "additionalLabel": string,
   "additionalAmount": number,
-  "menu": string,
+  "menuItems": string[],
   "clientNotes": string,
   "internalNotes": string,
   "missingInformation": string[],
@@ -256,6 +264,20 @@ Return ONLY a JSON object with these keys:
     const warnings = stringArray(raw.warnings);
     const missingInformation = stringArray(raw.missingInformation);
     const guestCount = proposal.guestCount;
+
+    if (Array.isArray(raw.menuItems) && approvedMenuItems(raw.menuItems).length !== raw.menuItems.length) {
+      warnings.unshift("Some suggested menu items were outside the approved menu and were removed.");
+    }
+    if (lead.menu_preferences && !proposal.menu) {
+      warnings.unshift("Review the customer's menu preferences; no approved dishes were selected.");
+    }
+    if (lead.dietary_restrictions) {
+      warnings.unshift("Review dietary restrictions and cross-contact needs with Chef Maria.");
+    }
+    if (lead.cuisine && !/italian/i.test(lead.cuisine)) {
+      proposal.menu = "";
+      warnings.unshift("Non-Italian cuisine request requires Chef Maria's personal review.");
+    }
 
     if (lead.service_type === "Private Chef" && guestCount > 10) {
       warnings.unshift("Private Chef is limited to 10 guests. Change this lead to a catering format before approval.");
