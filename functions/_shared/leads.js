@@ -158,8 +158,8 @@ export async function saveLead(env, input) {
       id: result?.meta?.last_row_id || null
     };
   } catch (error) {
-    console.error("Lead Manager database insert failed.", error);
-    return { stored: false, reason: "database_error" };
+    console.error("Lead Manager database insert failed:", error.message);
+    return { stored: false, reason: error.message };
   }
 }
 

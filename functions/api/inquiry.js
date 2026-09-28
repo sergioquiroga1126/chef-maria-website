@@ -1,6 +1,7 @@
 import { saveLead } from "../_shared/leads.js";
+import { processNewLead } from "../_shared/auto-proposal.js";
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   const json = (data, status = 200) =>
     new Response(JSON.stringify(data), {
       status,
@@ -9,13 +10,6 @@ export async function onRequestPost({ request, env }) {
         "Cache-Control": "no-store"
       }
     });
-
-  if (!env.RESEND_API_KEY) {
-    return json(
-      { ok: false, error: "Email service unavailable." },
-      500
-    );
-  }
 
   let data;
 
@@ -233,6 +227,45 @@ Message:
 ${message || "No additional message"}
   `.trim();
 
+  // INQUIRY_SAVE_FIRST_V1
+  const savedLead = await saveLead(env, {
+    source: "website_form",
+    name,
+    email,
+    phone,
+    eventDate: date,
+    eventTime: "",
+    guestCount,
+    serviceType: service,
+    eventType: "",
+    location,
+    cuisine: "",
+    menuPreferences: "",
+    dietaryRestrictions: dietary,
+    message
+  });
+
+  if (savedLead.stored && savedLead.id) {
+    waitUntil(processNewLead(env, savedLead.id));
+  }
+
+
+  if (!savedLead.stored) {
+    console.error("Customer inquiry could not be stored.");
+    return json(
+      { ok: false, error: "Your inquiry could not be recorded. Please contact Chef Maria." },
+      503
+    );
+  }
+
+  // The inquiry is safe in D1 before attempting notification.
+  let notificationSent = false;
+
+  try {
+    if (!env.RESEND_API_KEY) {
+      throw new Error("Resend is not configured.");
+    }
+
   const resendResponse = await fetch(
     "https://api.resend.com/emails",
     {
@@ -252,43 +285,25 @@ ${message || "No additional message"}
     }
   );
 
-  if (!resendResponse.ok) {
-    console.error(
-      "Resend request failed:",
-      resendResponse.status
-    );
+    if (!resendResponse.ok) {
+      throw new Error(`Resend returned HTTP ${resendResponse.status}`);
+    }
 
-    return json(
-      {
-        ok: false,
-        error:
-          "Your request could not be sent. Please call or email Chef Maria."
-      },
-      502
-    );
+    notificationSent = true;
+  } catch (error) {
+    console.error("Inquiry notification failed:", error);
+
+    await env.DB.prepare(
+      "UPDATE leads SET email_delivery_status = 'failed' WHERE id = ?"
+    ).bind(savedLead.id).run().catch(console.error);
   }
-
-  await saveLead(env, {
-    source: "website_form",
-    name,
-    email,
-    phone,
-    eventDate: date,
-    eventTime: "",
-    guestCount,
-    serviceType: service,
-    eventType: "",
-    location,
-    cuisine: "",
-    menuPreferences: "",
-    dietaryRestrictions: dietary,
-    message
-  });
 
   return json({
     ok: true,
     message:
-      "Thank you! Chef Maria received your request."
+      notificationSent
+        ? "Thank you! Chef Maria received your request."
+        : "Thank you! Your inquiry was recorded. Email notification is pending."
   });
 }
 

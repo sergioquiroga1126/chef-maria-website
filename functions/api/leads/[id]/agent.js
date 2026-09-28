@@ -185,6 +185,13 @@ Business rules:
 - Cooking Class pricing requires Chef Maria review; use $0 as the draft price and flag it.
 - Chef Maria specializes in Italian cuisine. For non-Italian cuisine, do not invent a menu; flag it for personal review.
 - Use only the approved menu items supplied below when suggesting dishes.
+- For Italian Private Chef requests with no menu preferences, suggest a balanced menu of 3 to 5 approved dishes.
+- A customer does not need to specify menu preferences. Do not flag missing menu_preferences when a suitable approved menu can be suggested.
+- Include an appetizer, first course, main course and dessert when appropriate.
+- For a menu with an appetizer and dessert, use $75 per guest.
+- Never leave the menu empty merely because the customer did not select dishes.
+- For allergies or significant dietary restrictions, flag necessary review rather than promising safety.
+- For non-Italian cuisine requests, leave menu selection for Chef Maria's review.
 - Respect allergies and dietary restrictions. If a request needs special handling or cross-contact review, flag it rather than promising safety.
 - If the customer already selected menu items, preserve those selections unless they conflict with dietary restrictions; explain any concern in internalNotes.
 - Do not invent event facts that are missing.
