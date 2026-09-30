@@ -160,6 +160,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
   const eventDate =
     new Date(Date.UTC(year, month - 1, day));
 
+
   const validDate =
     eventDate.getUTCFullYear() === year &&
     eventDate.getUTCMonth() === month - 1 &&
@@ -266,30 +267,34 @@ ${message || "No additional message"}
       throw new Error("Resend is not configured.");
     }
 
-  const resendResponse = await fetch(
-    "https://api.resend.com/emails",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from:
-          "Chef Maria Website <bookings@mariaprivatechef.com>",
-        to: [recipient],
-        reply_to: email,
-        subject: `New Chef Maria inquiry from ${name}`,
-        text: emailText
-      })
-    }
-  );
+    console.log("RESEND KEY LENGTH:", env.RESEND_API_KEY.length);
+
+    const resendResponse = await fetch(
+      "https://api.resend.com/emails",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from: "Chef Maria Website <bookings@mariaprivatechef.com>",
+          to: [env.CHEF_MARIA_EMAIL || "cucinadiverona@gmail.com"],
+          reply_to: email,
+          subject: `New Chef Maria inquiry from ${name}`,
+          text: emailText
+        })
+      }
+    );
 
     if (!resendResponse.ok) {
+      const resendError = await resendResponse.text();
+      console.error("Resend error:", resendError);
       throw new Error(`Resend returned HTTP ${resendResponse.status}`);
     }
 
     notificationSent = true;
+
   } catch (error) {
     console.error("Inquiry notification failed:", error);
 
