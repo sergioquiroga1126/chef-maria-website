@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ask Chef Maria AI</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background: #f6efe7;
+      color: #2b1b12;
+    }
+
+    .chat-page {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 18px 50px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 16px;
+      color: #8b1e1e;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .chat-card {
+      background: #ffffff;
+      border: 1px solid #eadfd5;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 16px 45px rgba(74, 45, 28, 0.12);
+    }
+
+    .chat-header {
+      padding: 26px 28px 20px;
+      background: #fffaf5;
+      border-bottom: 1px solid #eee2d8;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      color: #8b1e1e;
+      font-size: 36px;
+    }
+
+    .chat-subtitle {
+      margin: 0;
+      color: #6f5b4d;
+      line-height: 1.5;
+    }
+
+    #messages {
+      min-height: 390px;
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 24px;
+      background: #fbf8f4;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+
+    .msg {
+      max-width: 78%;
+      padding: 13px 16px;
+      border-radius: 18px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+      box-shadow: 0 3px 10px rgba(56, 35, 22, 0.05);
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: #8b1e1e;
+      color: white;
+      border-bottom-right-radius: 6px;
+    }
+
+    .msg.bot {
+      align-self: flex-start;
+      background: white;
+      border: 1px solid #eadfd5;
+      border-bottom-left-radius: 6px;
+    }
+
+    .msg-content {
+      display: block;
+      white-space: pre-wrap;
+    }
+
+    .speaker {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      opacity: 0.78;
+    }
+
+    .msg.summary {
+      width: 94%;
+      max-width: 94%;
+      padding: 20px;
+      background: #fffdf9;
+      border: 2px solid #d9c0a6;
+      box-shadow: 0 8px 24px rgba(74, 45, 28, 0.09);
+    }
+
+    .msg.summary .speaker {
+      color: #8b1e1e;
+      font-size: 14px;
+    }
+
+    .summary-title {
+      margin: 4px 0 16px;
+      color: #8b1e1e;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .summary-grid {
+      border: 1px solid #eadfd5;
+      border-radius: 14px;
+      overflow: hidden;
+      background: white;
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      gap: 14px;
+      padding: 11px 14px;
+      border-bottom: 1px solid #eee4db;
+    }
+
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+
+    .summary-label {
+      font-weight: 700;
+      color: #6a4432;
+    }
+
+    .summary-value {
+      color: #2b1b12;
+      overflow-wrap: anywhere;
+    }
+
+    .summary-confirmation {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #f8eee5;
+      color: #54291f;
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
+    .msg.success {
+      width: 94%;
+      max-width: 94%;
+      padding: 20px;
+      background: #f3faf4;
+      border: 2px solid #9dc9a4;
+    }
+
+    .msg.success .speaker {
+      color: #276536;
+    }
+
+    .msg.error {
+      width: 94%;
+      max-width: 94%;
+      padding: 20px;
+      background: #fff5f3;
+      border: 2px solid #d9a19a;
+    }
+
+    .msg.error .speaker {
+      color: #8b1e1e;
+    }
+
+    .input-area {
+      padding: 18px 22px 22px;
+      background: white;
+      border-top: 1px solid #eee2d8;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 15px 18px;
+      border-radius: 999px;
+      border: 1px solid #d8c8b8;
+      background: #fffdfb;
+      color: #2b1b12;
+      font: inherit;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #8b1e1e;
+      box-shadow: 0 0 0 3px rgba(139, 30, 30, 0.10);
+    }
+
+    button {
+      padding: 15px 24px;
+      border: none;
+      border-radius: 999px;
+      background: #8b1e1e;
+      color: white;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 640px) {
+      .chat-page {
+        padding: 12px 10px 24px;
+      }
+
+      .chat-card {
+        border-radius: 18px;
+      }
+
+      .chat-header {
+        padding: 20px 18px 16px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      #messages {
+        min-height: 360px;
+        max-height: 62vh;
+        padding: 16px 12px;
+      }
+
+      .msg {
+        max-width: 88%;
+      }
+
+      .msg.summary,
+      .msg.success,
+      .msg.error {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .summary-row {
+        grid-template-columns: 1fr;
+        gap: 3px;
+      }
+
+      .input-area {
+        padding: 12px;
+      }
+
+      button {
+        padding: 14px 18px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="chat-page">
+    <a class="back-link" href="/">← Back to Chef Maria</a>
+
+    <div class="chat-card">
+      <div class="chat-header">
+        <h1>Ask Chef Maria AI</h1>
+        <p class="chat-subtitle">
+          Private chef dinners, catering, menus, cooking classes and event inquiries.
+        </p>
+      </div>
+
+      <div id="messages" aria-live="polite">
+        <div class="msg bot">
+          <span class="speaker">Chef Maria AI</span>
+          <span class="msg-content">Ciao! How can I help you plan your Italian private dining experience?</span>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-row">
+          <input
+            id="question"
+            type="text"
+            autocomplete="off"
+            placeholder="Message Chef Maria AI..."
+          >
+          <button type="button" onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let chatHistory = [];
+    let sending = false;
+
+    function cleanBotText(text) {
+      return String(text || "")
+        .replace(/\\\*\\\*/g, "")
+        .replace(/\*\*/g, "")
+        .replace(/\\@/g, "@")
+        .trim();
+    }
+
+    function renderBookingSummary(container, text) {
+      const lines = String(text || "")
+        .split(/\n+/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
+      const fields = [
+        "Guest Count",
+        "Service Type",
+        "Event Type",
+        "City / Location",
+        "Date",
+        "Time",
+        "Cuisine Preference",
+        "Food / Menu Preferences",
+        "Allergies / Dietary Restrictions",
+        "Name",
+        "Email",
+        "Phone"
+      ];
+
+      const title = document.createElement("div");
+      title.className = "summary-title";
+      title.textContent = "Booking Inquiry Summary";
+      container.appendChild(title);
+
+      const grid = document.createElement("div");
+      grid.className = "summary-grid";
+
+      fields.forEach(label => {
+        const line = lines.find(item =>
+          item.toLowerCase().startsWith(
+            (label + ":").toLowerCase()
+          )
+        );
+
+        if (!line) return;
+
+        const value =
+          line.slice(label.length + 1).trim();
+
+        const row = document.createElement("div");
+        row.className = "summary-row";
+
+        const labelEl = document.createElement("div");
+        labelEl.className = "summary-label";
+        labelEl.textContent = label;
+
+        const valueEl = document.createElement("div");
+        valueEl.className = "summary-value";
+        valueEl.textContent = value;
+
+        row.appendChild(labelEl);
+        row.appendChild(valueEl);
+        grid.appendChild(row);
+      });
+
+      container.appendChild(grid);
+
+      const confirmationLines =
+        lines.filter(line =>
+          /^please confirm/i.test(line) ||
+          /^reply yes/i.test(line)
+        );
+
+      if (confirmationLines.length) {
+        const confirmation =
+          document.createElement("div");
+
+        confirmation.className =
+          "summary-confirmation";
+
+        confirmation.textContent =
+          confirmationLines.join(" ");
+
+        container.appendChild(confirmation);
+      }
+    }
+
+    function addMessage(role, text, id = "") {
+      const messages = document.getElementById("messages");
+
+      const box = document.createElement("div");
+      box.className = `msg ${role}`;
+
+      if (id) {
+        box.id = id;
+      }
+
+      const cleanedText =
+        role === "bot" ? cleanBotText(text) : text;
+
+      if (role === "bot") {
+        if (/^BOOKING INQUIRY SUMMARY/i.test(cleanedText)) {
+          box.classList.add("summary");
+        }
+
+        if (/^✓ INQUIRY SENT SUCCESSFULLY/i.test(cleanedText)) {
+          box.classList.add("success");
+        }
+
+        if (/^IMPORTANT: YOUR INQUIRY WAS NOT SENT/i.test(cleanedText)) {
+          box.classList.add("error");
+        }
+      }
+
+      const speaker = document.createElement("span");
+      speaker.className = "speaker";
+      speaker.textContent =
+        role === "user" ? "You" : "Chef Maria AI";
+
+      const content = document.createElement("div");
+      content.className = "msg-content";
+
+      if (box.classList.contains("summary")) {
+        renderBookingSummary(content, cleanedText);
+      } else {
+        content.textContent = cleanedText;
+      }
+
+      box.appendChild(speaker);
+      box.appendChild(content);
+      messages.appendChild(box);
+
+      messages.scrollTop = messages.scrollHeight;
+
+      return box;
+    }
+
+    async function sendMessage() {
+      if (sending) return;
+
+      const input = document.getElementById("question");
+      const button = document.querySelector(".input-row button");
+      const question = input.value.trim();
+
+      if (!question) return;
+
+      sending = true;
+      button.disabled = true;
+      input.disabled = true;
+
+      addMessage("user", question);
+      input.value = "";
+
+      const thinking = addMessage(
+        "bot",
+        "Thinking...",
+        "thinking"
+      );
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: question,
+            history: chatHistory
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        thinking.remove();
+        addMessage("bot", data.answer);
+
+        chatHistory.push({
+          role: "user",
+          content: question
+        });
+
+        chatHistory.push({
+          role: "assistant",
+          content: data.answer
+        });
+
+        chatHistory = chatHistory.slice(-80);
+
+      } catch (err) {
+        thinking.remove();
+
+        addMessage(
+          "bot",
+          "Sorry, I could not connect right now. Please try again."
+        );
+      } finally {
+        sending = false;
+        button.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    }
+
+    document
+      .getElementById("question")
+      .addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          sendMessage();
+        }
+      });
+  </script>
+</body>
+</html>

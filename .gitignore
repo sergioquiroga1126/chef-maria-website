@@ -1,3 +1,14 @@
 .env
 .env.*
 !.env.example
+.dev.vars*
+.wrangler/
+wrangler.toml
+
+# Local development files
+node_modules/
+.dev.vars
+.dev.vars.*
+*.backup
+*.backup-*
+*.before-*

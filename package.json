@@ -6,5 +6,8 @@
   },
   "dependencies": {
     "resend": "^6.12.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.142.0"
   }
 }
