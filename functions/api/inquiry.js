@@ -209,42 +209,41 @@ export async function onRequestPost({ request, env, waitUntil }) {
     );
   }
 
-  const recipient =
-    env.CHEF_MARIA_EMAIL || "cucinadiverona@gmail.com";
+  const recipient = "cucinadiverona@gmail.com";
 
   const emailText = `
-NEW CHEF MARIA INQUIRY
+  NEW CHEF MARIA INQUIRY
 
-Name: ${name}
-Email: ${email}
-Phone: ${phone || "Not provided"}
-Event date: ${date}
-Number of guests: ${guestCount}
-Service: ${service}
-Location: ${location}
-Dietary restrictions: ${dietary || "None provided"}
+  Name: ${name}
+  Email: ${email}
+  Phone: ${phone || "Not provided"}
+  Event date: ${date}
+  Number of guests: ${guestCount}
+  Service: ${service}
+  Location: ${location}
+  Dietary restrictions: ${dietary || "None provided"}
 
-Message:
-${message || "No additional message"}
+  Message:
+  ${message || "No additional message"}
   `.trim();
 
   // INQUIRY_SAVE_FIRST_V1
   const savedLead = await saveLead(env, {
-    source: "website_form",
-    name,
-    email,
-    phone,
-    eventDate: date,
-    eventTime: "",
-    guestCount,
-    serviceType: service,
-    eventType: "",
-    location,
-    cuisine: "",
-    menuPreferences: "",
-    dietaryRestrictions: dietary,
-    message
-  });
+  source: "website_form",
+  name,
+  email,
+  phone,
+  eventDate: date,
+  eventTime: "",
+  guestCount,
+  serviceType: service,
+  eventType: "",
+  location,
+  cuisine: "",
+  menuPreferences: "",
+  dietaryRestrictions: dietary,
+  message
+});
 
   if (savedLead.stored && savedLead.id) {
     waitUntil(processNewLead(env, savedLead.id));
@@ -279,7 +278,7 @@ ${message || "No additional message"}
         },
         body: JSON.stringify({
           from: "Chef Maria Website <bookings@mariaprivatechef.com>",
-          to: [env.CHEF_MARIA_EMAIL || "cucinadiverona@gmail.com"],
+          to: ["cucinadiverona@gmail.com"],
           reply_to: email,
           subject: `New Chef Maria inquiry from ${name}`,
           text: emailText
