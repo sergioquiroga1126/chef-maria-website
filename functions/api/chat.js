@@ -16,7 +16,7 @@ export async function onRequestPost(context) {
 
     const openaiApiKey = env.OPENAI_API_KEY;
     const resendApiKey = env.RESEND_API_KEY;
-    const chefEmail = env.CHEF_MARIA_EMAIL || "cucinadiverona@gmail.com";
+    const chefEmail = "cucinadiverona@gmail.com";
 
     if (!openaiApiKey) {
       return jsonResponse({
