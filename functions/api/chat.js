@@ -777,9 +777,10 @@ Email: cucinadiverona@gmail.com`
 
     const aiData = await aiResponse.json();
 
-    const aiAnswer =
+    const aiAnswer = (
       aiData.choices?.[0]?.message?.content ||
-      "How may I help you plan your Chef Maria experience?";
+      "How may I help you plan your Chef Maria experience?"
+    ).replace(/privatechefmaria\.com/gi, "mariaprivatechef.com");
 
     /*
      * Final summaries are controlled by the server.
