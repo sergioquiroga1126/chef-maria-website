@@ -92,7 +92,7 @@ function normalizePrice(serviceType, guestCount, proposedPrice) {
   }
 
   if (serviceType === "Cooking Class") {
-    price = 0;
+     price = Math.max(price || 75, 75);
   }
 
   return price;
@@ -193,7 +193,7 @@ Business rules:
 - Groups over 10 guests should use Full-Service Catering or Drop-off Catering, not Private Chef.
 - Full-Service Catering food pricing starts near $55 per guest. Service staff are separate, use a four-hour minimum at $40/hour per server.
 - Drop-off Catering is generally $35-$50 per guest.
-- Cooking Class pricing requires Chef Maria review; use $0 as the draft price and flag it.
+- Cooking Class pricing starts at $75 per guest. Final pricing depends on the class format, menu, and event requirements.
 - Chef Maria specializes in Italian cuisine. For non-Italian cuisine, do not invent a menu; flag it for personal review.
 - Use only the approved menu items supplied below when suggesting dishes.
 - For Italian Private Chef requests with no menu preferences, suggest a balanced menu of 3 to 5 approved dishes.
@@ -289,8 +289,8 @@ Return ONLY a JSON object with these keys:
       warnings.unshift("Non-Italian cuisine request requires Chef Maria's personal review.");
     }
 
-    if (lead.service_type === "Private Chef" && guestCount > 10) {
-      warnings.unshift("Private Chef is limited to 10 guests. Change this lead to a catering format before approval.");
+    if (lead.service_type === "Cooking Class") {
+      warnings.unshift("Cooking class pricing requires Chef Maria review.");
     }
 
     if (lead.service_type === "Cooking Class") {

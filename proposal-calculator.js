@@ -18,12 +18,13 @@ export const PROPOSAL_PRICING_GUIDANCE = {
     description: "Drop-off service typically ranges from $35 to $50 per guest, depending on the menu."
   },
   "Cooking Class": {
-    minimum: null,
+    minimum: 75,
     maximum: null,
-    suggested: null,
+    suggested: 75,
     description: "Enter a custom per-person rate after Chef Maria reviews the class format and menu."
   }
 };
+
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
