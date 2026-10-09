@@ -45,9 +45,13 @@ export async function onRequestPost(context) {
         lastAssistantBeforeBooking
       );
 
+    /*
+     * Accept thousands separators such as "1,000" or "1 000 000",
+     * but do not merge unrelated numbers such as "12/20/2026, 40 guests".
+     */
     const explicitGuestCountMatch =
       userMessage.match(
-        /\b(\d[\d.,\s]{0,200})\s*(?:people|guests?|gusts?|persons?|adults?|kids?|children)\b/i
+        /\b(\d{1,3}(?:[.,\s]\d{3})+|\d+)\s*(?:people|guests?|gusts?|persons?|adults?|kids?|children)\b/i
       );
 
     const correctedGuestCountMatch =
@@ -206,7 +210,17 @@ Please choose Full-Service Catering or Drop-off Catering.`
      *
      * Do not let the AI verbally accept invalid contact information.
      */
+    /*
+     * Server result messages mention "email" and "phone number",
+     * but they are not asking the customer for contact details.
+     */
+    const lastMessageIsServerResult =
+      /INQUIRY SENT SUCCESSFULLY|YOUR INQUIRY WAS NOT SENT|BOOKING INQUIRY SUMMARY|more than 100 guests/i.test(
+        lastAssistantMessage
+      );
+
     const wasAskedForEmail =
+      !lastMessageIsServerResult &&
       /email address|provide your email|your email/i.test(
         lastAssistantMessage
       );
@@ -216,8 +230,15 @@ Please choose Full-Service Catering or Drop-off Catering.`
         /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i
       );
 
+    /*
+     * Only treat a message as an email correction when the customer
+     * is giving THEIR email, not asking "can you email me the menu?"
+     */
     const emailCorrectionAttempt =
-      /\b(email|e-mail)\b/i.test(userMessage);
+      /@/.test(userMessage) ||
+      /\b(?:my|new|correct|change|update|wrong)\b[^.?!]*\b(?:email|e-mail)\b/i.test(
+        userMessage
+      );
 
     if (
       (wasAskedForEmail || emailCorrectionAttempt) &&
@@ -230,14 +251,20 @@ Please choose Full-Service Catering or Drop-off Catering.`
     }
 
     const wasAskedForPhone =
+      !lastMessageIsServerResult &&
       /phone number|best phone|telephone|number to reach you/i.test(
         lastAssistantMessage
       );
 
+    /*
+     * Only treat a message as a phone correction when the customer
+     * is giving THEIR number, not asking for Chef Maria's number.
+     */
     const phoneCorrectionAttempt =
-      /\b(phone|telephone|cell|mobile)\b/i.test(
+      /\b(?:my|new|correct|change|update|wrong)\b[^.?!]*\b(?:phone|telephone|cell|mobile|number)\b/i.test(
         userMessage
-      );
+      ) &&
+      (userMessage.match(/\d/g) || []).length >= 7;
 
     const currentPhoneMatch =
       userMessage.match(
@@ -548,7 +575,20 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
       });
     }
 
-    if (isConfirmation && bookingInfo.readyToSend) {
+    const looksLikeCorrection =
+      /\b(change|update|correct|correction|wrong|instead|actually|edit|replace|not correct|nope)\b/i.test(
+        userMessage
+      );
+
+    /*
+     * Only submit when the customer is replying to the summary
+     * they just saw. Otherwise show the current summary first.
+     */
+    if (
+      isConfirmation &&
+      bookingInfo.readyToSend &&
+      awaitingFinalConfirmation
+    ) {
       let emailSent = false;
 
       if (resendApiKey) {
@@ -574,7 +614,7 @@ Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help
 
     if (
       bookingInfo.readyToSend &&
-      !awaitingFinalConfirmation
+      (!awaitingFinalConfirmation || looksLikeCorrection)
     ) {
       const cuisineSummary =
         bookingInfo.specialCuisineReview
@@ -612,11 +652,6 @@ Reply YES to submit, or tell me what needs to be changed.`
       awaitingFinalConfirmation &&
       !isConfirmation
     ) {
-      const looksLikeCorrection =
-        /\b(change|update|correct|correction|wrong|instead|actually|edit|replace|not correct|nope)\b/i.test(
-          userMessage
-        );
-
       if (!looksLikeCorrection) {
         return jsonResponse({
           answer:
