@@ -38,6 +38,7 @@
           <p class="header-copy">Review inquiries, track proposals, and keep follow-ups moving.</p>
         </div>
         <div class="header-actions">
+          <button id="office-brief-button" class="secondary-button" type="button">Office brief</button>
           <button id="refresh-button" class="secondary-button" type="button">Refresh</button>
           <button id="logout-button" class="text-button" type="button">Lock dashboard</button>
         </div>
@@ -67,6 +68,19 @@
             <option value="closed">Closed</option>
           </select>
         </label>
+      </section>
+
+      <section id="office-brief" class="office-brief" aria-labelledby="office-brief-title" hidden>
+        <div class="office-brief-header">
+          <div>
+            <p class="eyebrow">Read-only daily overview</p>
+            <h2 id="office-brief-title">Office brief</h2>
+          </div>
+          <p id="office-brief-date" class="office-brief-date"></p>
+        </div>
+        <div id="office-brief-counts" class="office-brief-counts"></div>
+        <div id="office-brief-tasks" class="office-brief-tasks" aria-live="polite"></div>
+        <p class="office-brief-note">This first version organizes lead follow-ups and booked-event reminders. It does not send email or change your calendar.</p>
       </section>
 
       <p id="dashboard-message" class="dashboard-message" aria-live="polite"></p>

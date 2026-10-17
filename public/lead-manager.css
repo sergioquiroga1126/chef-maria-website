@@ -100,6 +100,86 @@ h1 {
   line-height: 1.6;
 }
 
+.office-brief {
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid rgba(103, 59, 39, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 253, 249, 0.94);
+  box-shadow: 0 12px 32px rgba(58, 35, 23, 0.08);
+}
+
+.office-brief-header,
+.office-task-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.office-brief-header h2 {
+  margin-bottom: 0;
+}
+
+.office-brief-date,
+.office-task-date {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.office-brief-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.office-count-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--cream);
+}
+
+.office-count-card span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.office-count-card strong {
+  font-size: 1.4rem;
+}
+
+.office-brief-tasks {
+  display: grid;
+  gap: 10px;
+}
+
+.office-task {
+  padding: 15px 17px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--olive);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.office-task.priority-high { border-left-color: var(--gold); }
+.office-task.priority-urgent { border-left-color: var(--danger); }
+.office-task h3,
+.office-task p { margin-bottom: 5px; }
+.office-task h3 { font-size: 1rem; }
+.office-task p { color: var(--muted); font-size: 0.88rem; }
+.office-task .office-task-client { color: var(--ink); font-weight: 700; text-transform: capitalize; }
+.office-task-date { white-space: nowrap; }
+.office-empty { color: var(--muted); }
+.office-brief-note { margin: 16px 0 0; color: var(--muted); font-size: 0.82rem; }
+
+@media (max-width: 720px) {
+  .office-brief-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .office-task-heading { flex-direction: column; gap: 4px; }
+}
+
 .login-form {
   display: grid;
   gap: 12px;
