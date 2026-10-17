@@ -2,6 +2,7 @@ import {
   isLeadManagerAuthorized,
   jsonResponse
 } from "../../_shared/leads.js";
+import { buildBookedEventChecklist } from "../../../office-assistant.js";
 
 const BUSINESS_TIME_ZONE = "America/New_York";
 const ACTIVE_STATUSES = new Set([
@@ -110,7 +111,8 @@ export function buildOfficeSummary(leads = [], now = new Date()) {
           ? `Still needed: ${missing.join(", ")}.`
           : eventDays === null
             ? "Event date needs review."
-            : `Event is ${eventDays === 0 ? "today" : `in ${eventDays} day${eventDays === 1 ? "" : "s"}`}.`
+            : `Event is ${eventDays === 0 ? "today" : `in ${eventDays} day${eventDays === 1 ? "" : "s"}`}.`,
+        checklist: buildBookedEventChecklist()
       });
     }
   }

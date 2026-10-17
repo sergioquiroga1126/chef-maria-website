@@ -2,6 +2,10 @@ import {
   calculateProposalTotals,
   pricingGuidanceFor
 } from "./proposal-calculator.js";
+import {
+  buildBookedEventChecklist,
+  buildOfficeReplyDraft
+} from "./office-assistant.js";
 
 const STORAGE_KEY = "chefMariaLeadManagerKey";
 const STATUS_LABELS = {
@@ -427,6 +431,44 @@ function createLeadCard(lead) {
     openProposalEditor(lead, proposalButton);
   });
 
+  let replyDraftPanel = null;
+  if (lead.status === "new") {
+    const replyDraftSection = createElement("section", "office-reply-section");
+    const replyDraftButton = createElement("button", "secondary-button", "Prepare reply draft");
+    replyDraftButton.type = "button";
+    replyDraftPanel = createElement("div", "office-reply-panel");
+    replyDraftPanel.hidden = true;
+
+    const replyDraftLabel = createElement("label", "office-reply-label");
+    replyDraftLabel.append(createElement("span", "", "Suggested reply · review and edit before sending"));
+    const replyDraftText = createElement("textarea", "office-reply-text");
+    replyDraftText.rows = 9;
+    replyDraftText.value = buildOfficeReplyDraft(lead);
+    replyDraftLabel.append(replyDraftText);
+
+    const replyDraftMessage = createElement("p", "office-reply-message", "This draft is not sent or saved.");
+    const copyReplyButton = createElement("button", "secondary-button", "Copy reply draft");
+    copyReplyButton.type = "button";
+    copyReplyButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(replyDraftText.value);
+        replyDraftMessage.textContent = "Copied. Review the text before sending it to the client.";
+      } catch {
+        replyDraftMessage.textContent = "Copy is unavailable here. Select the draft text and copy it manually.";
+      }
+    });
+
+    replyDraftButton.addEventListener("click", () => {
+      replyDraftPanel.hidden = !replyDraftPanel.hidden;
+      replyDraftButton.textContent = replyDraftPanel.hidden ? "Prepare reply draft" : "Hide reply draft";
+    });
+    replyDraftPanel.append(replyDraftLabel, replyDraftMessage, copyReplyButton);
+    replyDraftSection.append(replyDraftButton, replyDraftPanel);
+    card.append(topLine, details, nextAction, replyDraftSection);
+  } else {
+    card.append(topLine, details, nextAction);
+  }
+
   editor.append(
     statusLabel,
     followUpLabel,
@@ -434,7 +476,7 @@ function createLeadCard(lead) {
     saveButton,
     proposalButton
   );
-  card.append(topLine, details, nextAction, editor);
+  card.append(editor);
   return card;
 }
 
@@ -541,6 +583,12 @@ function renderOfficeBrief(data) {
         createElement("p", "office-task-client", `${task.clientName} · ${task.status.replaceAll("_", " ")}`),
         createElement("p", "", task.detail)
       );
+      if (task.type === "event_prep" && Array.isArray(task.checklist)) {
+        card.append(createElement("p", "office-checklist-title", "Suggested event checklist · not saved"));
+        const checklist = createElement("ul", "office-checklist");
+        task.checklist.forEach((item) => checklist.append(createElement("li", "", item)));
+        card.append(checklist);
+      }
       officeBriefTasks.append(card);
     });
   }
