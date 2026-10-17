@@ -32,7 +32,7 @@ export function buildOfficeReplyDraft(lead = {}) {
   return [
     `Hi ${firstName},`,
     "",
-    `Thank you for reaching out to Chef Maria${eventDetails ? ` about your ${eventDetails} inquiry` : ""}. We’ve received your request and will review the details and availability. This is not yet a confirmed booking.`,
+    `Thank you for reaching out to Chef Maria${eventDetails ? ` about your inquiry regarding your ${eventDetails}` : ""}. We’ve received your request and will review the details and availability. This is not yet a confirmed booking.`,
     "",
     preferencesLine,
     dietaryLine,
