@@ -22,6 +22,11 @@ const leadList = document.getElementById("lead-list");
 const searchInput = document.getElementById("search-input");
 const statusFilter = document.getElementById("status-filter");
 const refreshButton = document.getElementById("refresh-button");
+const officeBriefButton = document.getElementById("office-brief-button");
+const officeBriefPanel = document.getElementById("office-brief");
+const officeBriefDate = document.getElementById("office-brief-date");
+const officeBriefCounts = document.getElementById("office-brief-counts");
+const officeBriefTasks = document.getElementById("office-brief-tasks");
 const logoutButton = document.getElementById("logout-button");
 const proposalDialog = document.getElementById("proposal-dialog");
 const proposalForm = document.getElementById("proposal-form");
@@ -494,6 +499,71 @@ async function loadLeads() {
   }
 }
 
+function formatOfficeDate(value) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || "Needs a date";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/New_York"
+  }).format(new Date(`${value}T12:00:00-04:00`));
+}
+
+function renderOfficeBrief(data) {
+  officeBriefDate.textContent = `Prepared ${formatOfficeDate(data.businessDate)}`;
+  officeBriefCounts.replaceChildren();
+  officeBriefTasks.replaceChildren();
+
+  const labels = [
+    ["New inquiries", data.counts?.newInquiries],
+    ["Overdue follow-ups", data.counts?.overdueFollowUps],
+    ["Due today", data.counts?.followUpsDueToday],
+    ["Booked events · next 14 days", data.counts?.upcomingBookedEvents]
+  ];
+  labels.forEach(([label, value]) => {
+    const card = createElement("div", "office-count-card");
+    card.append(createElement("span", "", label), createElement("strong", "", value || 0));
+    officeBriefCounts.append(card);
+  });
+
+  if (!data.tasks?.length) {
+    officeBriefTasks.append(createElement("p", "office-empty", "No open office tasks were found in the current lead records."));
+  } else {
+    data.tasks.forEach((task) => {
+      const card = createElement("article", `office-task priority-${task.priority || "normal"}`);
+      const heading = createElement("div", "office-task-heading");
+      heading.append(
+        createElement("h3", "", task.title),
+        createElement("span", "office-task-date", formatOfficeDate(task.dueDate))
+      );
+      card.append(
+        heading,
+        createElement("p", "office-task-client", `${task.clientName} · ${task.status.replaceAll("_", " ")}`),
+        createElement("p", "", task.detail)
+      );
+      officeBriefTasks.append(card);
+    });
+  }
+
+  officeBriefPanel.hidden = false;
+}
+
+async function loadOfficeBrief() {
+  officeBriefButton.disabled = true;
+  officeBriefButton.textContent = "Preparing…";
+
+  try {
+    const data = await apiFetch("/api/leads/office-summary");
+    renderOfficeBrief(data);
+  } catch (error) {
+    dashboardMessage.textContent = error.message;
+    if (error.status === 401) lockDashboard("That access key was not accepted.");
+  } finally {
+    officeBriefButton.disabled = false;
+    officeBriefButton.textContent = "Office brief";
+  }
+}
+
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   accessKey = accessKeyInput.value.trim();
@@ -510,6 +580,7 @@ loginForm.addEventListener("submit", async (event) => {
 
 logoutButton.addEventListener("click", () => lockDashboard());
 refreshButton.addEventListener("click", loadLeads);
+officeBriefButton.addEventListener("click", loadOfficeBrief);
 statusFilter.addEventListener("change", loadLeads);
 searchInput.addEventListener("input", () => {
   window.clearTimeout(searchTimer);

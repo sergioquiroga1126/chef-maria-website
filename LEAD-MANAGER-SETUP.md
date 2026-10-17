@@ -64,6 +64,11 @@ Proposal drafts are private and never emailed automatically. Saving a draft
 recalculates its totals on the server. Chef Maria must review and approve every
 proposal before it is shared with a client.
 
+The **Office brief** button prepares a protected, read-only overview of new
+inquiries, overdue follow-ups, and booked events coming up in the next 14 days.
+It uses the existing D1 binding and dashboard key. It does not send messages,
+change lead records, or create calendar events.
+
 The available stages are:
 
 - New
