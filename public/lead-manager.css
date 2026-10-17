@@ -172,8 +172,25 @@ h1 {
 .office-task p { color: var(--muted); font-size: 0.88rem; }
 .office-task .office-task-client { color: var(--ink); font-weight: 700; text-transform: capitalize; }
 .office-task-date { white-space: nowrap; }
+.office-checklist-title { margin-top: 12px; color: var(--ink) !important; font-weight: 700; }
+.office-checklist { margin: 0; padding-left: 22px; color: var(--muted); font-size: 0.88rem; }
+.office-checklist li + li { margin-top: 5px; }
 .office-empty { color: var(--muted); }
 .office-brief-note { margin: 16px 0 0; color: var(--muted); font-size: 0.82rem; }
+.office-reply-section { margin: 12px 0 0; }
+.office-reply-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--cream);
+}
+.office-reply-panel[hidden] { display: none; }
+.office-reply-label { display: grid; gap: 8px; font-weight: 700; }
+.office-reply-text { width: 100%; min-height: 190px; resize: vertical; font-weight: 400; }
+.office-reply-message { margin: 0; color: var(--muted); font-size: 0.84rem; }
 
 @media (max-width: 720px) {
   .office-brief-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }

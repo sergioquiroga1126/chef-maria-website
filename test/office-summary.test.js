@@ -46,6 +46,7 @@ test("office brief prioritizes new inquiries, overdue follow-ups, and booked eve
   });
   assert.equal(summary.tasks.some((task) => task.clientName === "Closed Client"), false);
   assert.match(summary.tasks.find((task) => task.type === "event_prep" && task.leadId === 3).detail, /event date, event time, guest count, location, service type/);
+  assert.equal(summary.tasks.find((task) => task.type === "event_prep" && task.leadId === 2).checklist.length, 5);
   assert.equal(summary.tasks[0].clientName, "New Client");
 });
 
