@@ -14,7 +14,7 @@ export function buildOfficeReplyDraft(lead = {}) {
   const name = clean(lead.name);
   const firstName = name ? name.split(/\s+/)[0] : "there";
   const eventDetails = [
-    clean(lead.event_type),
+    clean(lead.event_type) || "event",
     lead.event_date ? `on ${clean(lead.event_date)}` : "",
     lead.event_time ? `at ${clean(lead.event_time)}` : "",
     lead.guest_count ? `for ${clean(lead.guest_count)} guests` : "",
