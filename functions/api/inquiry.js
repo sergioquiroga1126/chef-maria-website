@@ -1,4 +1,7 @@
-export async function onRequestPost({ request, env }) {
+import { saveLead } from "../_shared/leads.js";
+import { processNewLead } from "../_shared/auto-proposal.js";
+
+export async function onRequestPost({ request, env, waitUntil }) {
   const json = (data, status = 200) =>
     new Response(JSON.stringify(data), {
       status,
@@ -230,6 +233,46 @@ Dietary restrictions: ${dietary || "None provided"}
 Message:
 ${message || "No additional message"}
   `.trim();
+
+  // Save the inquiry to the Lead Manager before sending email.
+  const savedLead = await saveLead(env, {
+    source: "website_form",
+    name,
+    email,
+    phone,
+    eventDate: date,
+    eventTime: "",
+    guestCount,
+    serviceType: service,
+    eventType: "",
+    location,
+    cuisine: "",
+    menuPreferences: "",
+    dietaryRestrictions: dietary,
+    message
+  });
+
+  if (!savedLead.stored) {
+    console.error("Customer inquiry could not be stored.");
+
+    return json(
+      {
+        ok: false,
+        error: "Your inquiry could not be recorded. Please contact Chef Maria."
+      },
+      503
+    );
+  }
+
+  // Generate the AI proposal in the background.
+  // Draft only — nothing is automatically sent to the customer.
+  if (savedLead.id && typeof waitUntil === "function") {
+    waitUntil(
+      processNewLead(env, savedLead.id).catch(error => {
+        console.error("Automatic proposal draft failed:", error);
+      })
+    );
+  }
 
   const resendResponse = await fetch(
     "https://api.resend.com/emails",

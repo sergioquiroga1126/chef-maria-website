@@ -1,0 +1,8 @@
+name = "chef-maria-manager"
+pages_build_output_dir = "public"
+compatibility_date = "2026-09-21"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "chef-maria-website"
+database_id = "773ca346-7e7e-494d-8558-639eb781f494"
