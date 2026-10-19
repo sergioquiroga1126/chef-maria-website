@@ -70,6 +70,10 @@ export function buildOfficeSummary(leads = [], now = new Date()) {
 
     const eventDays = daysBetween(today, lead.event_date);
     const followUpDays = daysBetween(lead.follow_up_at, today);
+
+    // Do not surface routine office tasks for events that have already passed.
+    if (eventDays !== null && eventDays < 0) continue;
+
     const baseTask = {
       leadId: lead.id,
       clientName: lead.name || "Unnamed inquiry",
