@@ -1,7 +1,8 @@
 import {
   cleanLeadValue,
   isLeadManagerAuthorized,
-  jsonResponse
+  jsonResponse,
+  nextActionForStatus
 } from "../../../_shared/leads.js";
 import { calculateProposalTotals } from "../../../../proposal-calculator.js";
 
@@ -15,6 +16,7 @@ function proposalResponse(row) {
     leadId: row.lead_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    sentAt: row.sent_at || null,
     status: row.status,
     title: row.title,
     guestCount: row.guest_count,
@@ -252,10 +254,174 @@ export async function onRequestPut({ request, env, params }) {
   }
 }
 
-export function onRequestPost() {
-  return jsonResponse(
-    { ok: false, error: "Method not allowed." },
-    405,
-    { Allow: "GET, PUT" }
-  );
+export async function onRequestPost({ request, env, params }) {
+  try {
+    const authorization = await authorizeAndFindLead(request, env, params);
+
+    if (authorization.response) {
+      return authorization.response;
+    }
+
+    if (!env.RESEND_API_KEY) {
+      return jsonResponse(
+        { ok: false, error: "Proposal email service is not configured." },
+        503
+      );
+    }
+
+    const lead = authorization.lead;
+    const customerEmail = cleanLeadValue(lead.email, 150).toLowerCase();
+
+    if (!customerEmail) {
+      return jsonResponse(
+        { ok: false, error: "This lead does not have an email address." },
+        400
+      );
+    }
+
+    const proposal = await env.DB.prepare(
+      `SELECT * FROM proposals WHERE lead_id = ?`
+    )
+      .bind(authorization.leadId)
+      .first();
+
+    if (!proposal) {
+      return jsonResponse(
+        { ok: false, error: "Save the proposal before sending it." },
+        404
+      );
+    }
+
+    const money = (cents) =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format((Number(cents) || 0) / 100);
+
+    const subject =
+      proposal.title ||
+      `Chef Maria Proposal for ${lead.name || "Your Event"}`;
+
+    const emailText = [
+      `Hello ${lead.name || ""},`,
+      "",
+      "Thank you for considering Chef Maria for your event.",
+      "",
+      `Event: ${lead.event_type || lead.service_type || "Private event"}`,
+      `Date: ${[lead.event_date, lead.event_time].filter(Boolean).join(" · ") || "To be confirmed"}`,
+      `Location: ${lead.location || "South Florida"}`,
+      `Guests: ${proposal.guest_count}`,
+      "",
+      "Proposed Menu:",
+      proposal.menu || "Menu to be finalized with Chef Maria.",
+      "",
+      `Price: ${money(proposal.price_per_guest_cents)} per guest`,
+      proposal.staffing_subtotal_cents > 0
+        ? `Staffing: ${money(proposal.staffing_subtotal_cents)}`
+        : null,
+      proposal.additional_amount_cents > 0
+        ? `${proposal.additional_label || "Additional"}: ${money(proposal.additional_amount_cents)}`
+        : null,
+      `Estimated Total: ${money(proposal.total_cents)}`,
+      "",
+      proposal.client_notes || "",
+      "",
+      "Please let us know if you would like any adjustments.",
+      "",
+      "Best,",
+      "Chef Maria",
+      "cucinadiverona@gmail.com"
+    ]
+      .filter((line) => line !== null)
+      .join("\n");
+
+    const resendResponse = await fetch(
+      "https://api.resend.com/emails",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from: "Chef Maria <bookings@mariaprivatechef.com>",
+          to: [customerEmail],
+          bcc: ["cucinadiverona@gmail.com"],
+          reply_to: "cucinadiverona@gmail.com",
+          subject,
+          text: emailText
+        })
+      }
+    );
+
+    if (!resendResponse.ok) {
+      const resendError = await resendResponse.text();
+      console.error("Proposal Resend error:", resendError);
+
+      return jsonResponse(
+        { ok: false, error: "The proposal email could not be sent." },
+        502
+      );
+    }
+
+    const now = new Date();
+    const updatedAt = now.toISOString();
+    const followUp = new Date(now);
+    let businessDays = 0;
+
+    while (businessDays < 3) {
+      followUp.setUTCDate(followUp.getUTCDate() + 1);
+      const day = followUp.getUTCDay();
+
+      if (day !== 0 && day !== 6) {
+        businessDays += 1;
+      }
+    }
+
+    const followUpAt = followUp.toISOString().slice(0, 10);
+
+    try {
+      await env.DB.prepare(
+        `UPDATE proposals
+         SET status = 'sent',
+             updated_at = ?,
+             sent_at = ?
+         WHERE lead_id = ?`
+      )
+        .bind(updatedAt, updatedAt, authorization.leadId)
+        .run();
+
+      await env.DB.prepare(
+        `UPDATE leads
+         SET status = 'proposal_sent',
+             follow_up_at = ?,
+             next_action = ?,
+             updated_at = ?
+         WHERE id = ?`
+      )
+        .bind(
+          followUpAt,
+          nextActionForStatus("proposal_sent", lead.priority),
+          updatedAt,
+          authorization.leadId
+        )
+        .run();
+    } catch (updateError) {
+      console.error("Proposal sent but status update failed:", updateError);
+    }
+
+    return jsonResponse({
+      ok: true,
+      message: "Proposal sent from Chef Maria.",
+      to: customerEmail,
+      followUpAt
+    });
+  } catch (error) {
+    console.error("Proposal email failed.", error);
+
+    return jsonResponse(
+      { ok: false, error: "The proposal email could not be sent." },
+      500
+    );
+  }
 }

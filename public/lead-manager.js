@@ -259,9 +259,11 @@ function fillProposalForm(lead, savedProposal) {
   ].filter(Boolean).join(" · ");
   proposalOutputs.guidance.textContent = proposalGuidanceText(lead);
   calculateVisibleProposal();
-  proposalMessage.textContent = savedProposal
-    ? `Draft last saved ${formatCreatedAt(savedProposal.updatedAt)}.`
-    : "Review every detail before saving this draft.";
+  proposalMessage.textContent = savedProposal?.sentAt
+    ? `Proposal sent ${formatCreatedAt(savedProposal.sentAt)}.`
+    : savedProposal
+      ? `Draft last saved ${formatCreatedAt(savedProposal.updatedAt)}.`
+      : "Review every detail before saving this draft.";
 }
 
 async function openProposalEditor(lead, button) {
@@ -366,6 +368,14 @@ function createLeadCard(lead) {
   addDetail(details, "Menu", lead.menu_preferences, { wide: true });
   addDetail(details, "Dietary restrictions", lead.dietary_restrictions, { wide: true });
   addDetail(details, "Message", lead.message, { wide: true });
+
+  if (lead.proposal_sent_at) {
+    addDetail(
+      details,
+      "Proposal sent",
+      formatCreatedAt(lead.proposal_sent_at)
+    );
+  }
 
   const nextAction = createElement("p", "next-action", lead.next_action || "Review this inquiry.");
 
@@ -789,63 +799,55 @@ document.getElementById("proposal-mark-sent").addEventListener("click", async (e
   }
 });
 
-proposalEmailButton.addEventListener("click", () => {
+proposalEmailButton.addEventListener("click", async () => {
   if (!activeProposalLead || !proposalForm.reportValidity()) {
     return;
   }
 
-  const totals = calculateVisibleProposal();
-  if (!totals) return;
+  const customerEmail = activeProposalLead.email || "";
 
-  const values = proposalValues();
-  const lead = activeProposalLead;
+  if (!confirm(`Send this proposal now to ${customerEmail}?`)) {
+    return;
+  }
 
-  const subject =
-    values.title ||
-    `Chef Maria Proposal for ${lead.name || "Your Event"}`;
+  proposalEmailButton.disabled = true;
+  proposalEmailButton.textContent = "Sending…";
+  proposalMessage.textContent = "Saving and sending proposal from Chef Maria…";
 
-  const body = [
-    `Hello ${lead.name || ""},`,
-    "",
-    "Thank you for considering Chef Maria for your event.",
-    "",
-    `Event: ${lead.event_type || lead.service_type || "Private event"}`,
-    `Date: ${[lead.event_date, lead.event_time].filter(Boolean).join(" · ")}`,
-    `Location: ${lead.location || "South Florida"}`,
-    `Guests: ${totals.guestCount}`,
-    "",
-    "Proposed Menu:",
-    values.menu || "Menu to be finalized with Chef Maria.",
-    "",
-    `Price: ${formatCurrency(totals.pricePerGuestCents / 100)} per guest`,
-    totals.staffingSubtotalCents > 0
-      ? `Staffing: ${formatCurrency(totals.staffingSubtotalCents / 100)}`
-      : "",
-    totals.additionalAmountCents > 0
-      ? `${values.additionalLabel || "Additional"}: ${formatCurrency(totals.additionalAmountCents / 100)}`
-      : "",
-    `Estimated Total: ${formatCurrency(totals.totalCents / 100)}`,
-    "",
-    values.clientNotes || "",
-    "",
-    "Please let us know if you would like any adjustments.",
-    "",
-    "Best,",
-    "Chef Maria",
-    "cucinadiverona@gmail.com"
-  ].join("\n");
+  try {
+    const saved = await apiFetch(
+      `/api/leads/${activeProposalLead.id}/proposal`,
+      {
+        method: "PUT",
+        body: JSON.stringify(proposalValues())
+      }
+    );
 
-  const gmailUrl = new URL("https://mail.google.com/mail/");
-  gmailUrl.searchParams.set("view", "cm");
-  gmailUrl.searchParams.set("fs", "1");
-  gmailUrl.searchParams.set("to", lead.email || "");
-  gmailUrl.searchParams.set("su", subject);
-  gmailUrl.searchParams.set("body", body);
+    fillProposalForm(activeProposalLead, saved.proposal);
 
-  window.open(gmailUrl.toString(), "_blank", "noopener,noreferrer");
+    const sent = await apiFetch(
+      `/api/leads/${activeProposalLead.id}/proposal`,
+      {
+        method: "POST"
+      }
+    );
 
-  proposalMessage.textContent =
-    "Gmail draft opened. Review it before sending.";
+    proposalMessage.textContent =
+      `Proposal sent from Chef Maria to ${sent.to}. Follow-up scheduled for ${sent.followUpAt}.`;
+
+    await loadLeads();
+  } catch (error) {
+    if (error.status === 401) {
+      proposalDialog.close();
+      lockDashboard("Your access key was not accepted.");
+      return;
+    }
+
+    proposalMessage.textContent = error.message;
+  } finally {
+    proposalEmailButton.disabled = false;
+    proposalEmailButton.textContent = "Send Proposal Email";
+  }
 });
 
 function setPrintText(id, value) {

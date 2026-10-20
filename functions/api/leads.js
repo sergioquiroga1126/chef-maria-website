@@ -27,7 +27,10 @@ const SELECT_COLUMNS = `
   next_action,
   follow_up_at,
   notes,
-  email_delivery_status
+  email_delivery_status,
+  (SELECT sent_at
+   FROM proposals
+   WHERE proposals.lead_id = leads.id) AS proposal_sent_at
 `;
 
 export async function onRequestGet({ request, env }) {
