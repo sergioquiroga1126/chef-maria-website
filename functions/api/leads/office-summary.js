@@ -32,6 +32,13 @@ function parseDate(value) {
     if (match) match = [match[0], match[3], match[1].padStart(2, "0"), match[2].padStart(2, "0")];
   }
 
+  if (!match) {
+    const namedDate = new Date(text + " 00:00:00 UTC");
+    if (!Number.isNaN(namedDate.getTime()) && /^[A-Za-z]+\s+\d{1,2},\s+\d{4}$/.test(text)) {
+      return namedDate;
+    }
+  }
+
   if (!match) return null;
 
   const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));

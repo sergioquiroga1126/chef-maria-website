@@ -103,3 +103,12 @@ test("office brief excludes past events even when follow-up is overdue", () => {
   assert.equal(summary.tasks.some((task) => task.clientName === "Past Event Client"), false);
   assert.equal(summary.tasks.some((task) => task.clientName === "Future Event Client"), true);
 });
+
+
+test("office brief excludes past events written with month names", () => {
+  const summary = buildOfficeSummary([
+    { id: 12, name: "Named Past Event", status: "new", priority: "urgent", event_date: "October 10, 2026", follow_up_at: "2026-10-19" }
+  ], fixedNow);
+
+  assert.equal(summary.tasks.some((task) => task.clientName === "Named Past Event"), false);
+});
