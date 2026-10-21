@@ -119,8 +119,12 @@ function safeProposal(raw, lead) {
     serverCount,
     serverHours,
     serverHourlyRate: 40,
-    additionalLabel: cleanLeadValue(raw.additionalLabel, 100),
-    additionalAmount: money(raw.additionalAmount, 0),
+    additionalLabel: serviceType === "Cooking Class"
+      ? ""
+      : cleanLeadValue(raw.additionalLabel, 100),
+    additionalAmount: serviceType === "Cooking Class"
+      ? 0
+      : money(raw.additionalAmount, 0),
     menu: approvedMenuItems(raw.menuItems).join("\n"),
     clientNotes: cleanLeadValue(
       raw.clientNotes,
