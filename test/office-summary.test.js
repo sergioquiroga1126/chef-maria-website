@@ -92,3 +92,14 @@ test("office brief endpoint rejects writes", async () => {
   assert.equal(response.status, 405);
   assert.equal(response.headers.get("Allow"), "GET");
 });
+
+
+test("office brief excludes past events even when follow-up is overdue", () => {
+  const summary = buildOfficeSummary([
+    { id: 10, name: "Past Event Client", status: "new", priority: "urgent", event_date: "2026-10-10", follow_up_at: "2026-10-11" },
+    { id: 11, name: "Future Event Client", status: "new", priority: "normal", event_date: "2026-10-25", follow_up_at: "" }
+  ], fixedNow);
+
+  assert.equal(summary.tasks.some((task) => task.clientName === "Past Event Client"), false);
+  assert.equal(summary.tasks.some((task) => task.clientName === "Future Event Client"), true);
+});
