@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <title>Chef Maria Lead Manager</title>
+  <link rel="stylesheet" href="lead-manager.css" />
+</head>
+<body>
+  <main class="shell">
+    <section id="login-panel" class="login-panel" aria-labelledby="login-title">
+      <div class="brand-mark">CM</div>
+      <p class="eyebrow">Private business dashboard</p>
+      <h1 id="login-title">Chef Maria Lead Manager</h1>
+      <p class="login-copy">
+        Enter the private Lead Manager key to view customer inquiries.
+      </p>
+      <form id="login-form" class="login-form">
+        <label for="access-key">Access key</label>
+        <input
+          id="access-key"
+          name="accessKey"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+        <button type="submit">Open Lead Manager</button>
+        <p id="login-message" class="form-message" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section id="dashboard" class="dashboard" hidden>
+      <header class="dashboard-header">
+        <div>
+          <p class="eyebrow">Chef Maria private command center</p>
+          <h1>Lead Manager</h1>
+          <p class="header-copy">Review inquiries, track proposals, and keep follow-ups moving.</p>
+        </div>
+        <div class="header-actions">
+          <button id="office-brief-button" class="secondary-button" type="button">Office brief</button>
+          <button id="refresh-button" class="secondary-button" type="button">Refresh</button>
+          <button id="logout-button" class="text-button" type="button">Lock dashboard</button>
+        </div>
+      </header>
+
+      <section class="summary-grid" aria-label="Lead summary">
+        <article class="summary-card"><span>All leads</span><strong id="count-total">0</strong></article>
+        <article class="summary-card"><span>New</span><strong id="count-new">0</strong></article>
+        <article class="summary-card attention"><span>Priority</span><strong id="count-priority">0</strong></article>
+        <article class="summary-card"><span>Proposals sent</span><strong id="count-proposals">0</strong></article>
+        <article class="summary-card success"><span>Booked</span><strong id="count-booked">0</strong></article>
+      </section>
+
+      <section class="controls" aria-label="Lead filters">
+        <label class="search-field">
+          <span>Search</span>
+          <input id="search-input" type="search" placeholder="Name, email, phone, city…" />
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="status-filter">
+            <option value="">All active and closed</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="proposal_sent">Proposal Sent</option>
+            <option value="booked">Booked</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="office-brief" class="office-brief" aria-labelledby="office-brief-title" hidden>
+        <div class="office-brief-header">
+          <div>
+            <p class="eyebrow">Read-only daily overview</p>
+            <h2 id="office-brief-title">Office brief</h2>
+          </div>
+          <p id="office-brief-date" class="office-brief-date"></p>
+        </div>
+        <div id="office-brief-counts" class="office-brief-counts"></div>
+        <div id="office-brief-tasks" class="office-brief-tasks" aria-live="polite"></div>
+        <p class="office-brief-note">Reply drafts are not sent or saved. Event checklists are suggestions and are not saved. This assistant does not change leads or your calendar.</p>
+      </section>
+
+      <p id="dashboard-message" class="dashboard-message" aria-live="polite"></p>
+      <section id="lead-list" class="lead-list" aria-label="Customer leads"></section>
+    </section>
+  </main>
+
+  <dialog id="proposal-dialog" class="proposal-dialog">
+    <div class="proposal-modal">
+      <header class="proposal-modal-header">
+        <div>
+          <p class="eyebrow">Private draft workspace</p>
+          <h2 id="proposal-dialog-title">Create Proposal</h2>
+          <p id="proposal-client-line" class="proposal-client-line"></p>
+        </div>
+        <button id="proposal-close" class="dialog-close" type="button" aria-label="Close proposal editor">×</button>
+      </header>
+
+      <form id="proposal-form" class="proposal-form">
+        <input id="proposal-lead-id" type="hidden" />
+
+        <section class="proposal-section">
+          <h3>Proposal details</h3>
+          <div class="proposal-grid">
+            <label class="span-2">
+              <span>Proposal title</span>
+              <input id="proposal-title" maxlength="160" required />
+            </label>
+            <label>
+              <span>Guests</span>
+              <input id="proposal-guests" type="number" min="1" max="1000" required />
+            </label>
+            <label>
+              <span>Price per guest</span>
+              <input id="proposal-price-per-guest" type="number" min="0" step="0.01" required />
+            </label>
+          </div>
+          <p id="proposal-guidance" class="pricing-guidance"></p>
+        </section>
+
+        <section class="proposal-section">
+          <h3>Staffing and totals</h3>
+          <div class="proposal-grid proposal-calculation-grid">
+            <label>
+              <span>Servers</span>
+              <input id="proposal-server-count" type="number" min="0" max="50" value="0" />
+            </label>
+            <label>
+              <span>Hours per server</span>
+              <input id="proposal-server-hours" type="number" min="0" max="24" step="0.5" value="0" />
+            </label>
+            <label>
+              <span>Hourly rate</span>
+              <input id="proposal-server-rate" type="number" min="0" step="0.01" value="40" />
+            </label>
+            <div class="calculated-field">
+              <span>Staffing</span>
+              <strong id="proposal-staffing-subtotal">$0.00</strong>
+            </div>
+            <label>
+              <span>Additional charge label</span>
+              <input id="proposal-additional-label" maxlength="100" placeholder="Travel, rentals, service fee…" />
+            </label>
+            <label>
+              <span>Additional amount</span>
+              <input id="proposal-additional-amount" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <div class="calculated-field">
+              <span>Food subtotal</span>
+              <strong id="proposal-food-subtotal">$0.00</strong>
+            </div>
+            <div class="calculated-field grand-total-field">
+              <span>Estimated total</span>
+              <strong id="proposal-total">$0.00</strong>
+            </div>
+          </div>
+          <p class="staffing-note">Service staff use a four-hour minimum at $40 per hour unless Chef Maria changes the rate.</p>
+        </section>
+
+        <section class="proposal-section">
+          <h3>Menu and notes</h3>
+          <div class="proposal-grid">
+            <label class="span-2">
+              <span>Proposed menu</span>
+              <textarea id="proposal-menu" rows="5" maxlength="4000"></textarea>
+            </label>
+            <label class="span-2">
+              <span>Notes shown to the client</span>
+              <textarea id="proposal-client-notes" rows="4" maxlength="4000"></textarea>
+            </label>
+            <label class="span-2">
+              <span>Private internal notes</span>
+              <textarea id="proposal-internal-notes" rows="3" maxlength="2000" placeholder="These notes will not appear on the printed proposal."></textarea>
+            </label>
+          </div>
+        </section>
+
+        <p id="proposal-message" class="proposal-message" aria-live="polite"></p>
+        <footer class="proposal-actions">
+          <p>This is an editable draft. Saving or printing does not email the client. Use Send Proposal Email when approved.</p>
+          <div>
+            <button id="proposal-agent" class="secondary-button" type="button">AI Draft Proposal</button>
+            <button id="proposal-save" class="secondary-button" type="submit">Save Draft</button>
+            <button id="proposal-email" class="secondary-button" type="button">Send Proposal Email</button>
+            <button id="proposal-mark-sent" class="secondary-button" type="button">Mark Proposal Sent</button>
+            <button id="proposal-print" class="primary-button" type="button">Print / Save PDF</button>
+          </div>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <section id="proposal-print-view" class="proposal-print-view" aria-hidden="true">
+    <header class="print-header">
+      <div class="brand-mark">CM</div>
+      <div>
+        <p class="eyebrow">Italian private chef & catering</p>
+        <h1>Chef Maria</h1>
+        <p>South Florida · 561-692-1473 · cucinadiverona@gmail.com</p>
+      </div>
+    </header>
+    <div class="print-title-block">
+      <p>Prepared for <strong id="print-client-name"></strong></p>
+      <h2 id="print-title"></h2>
+      <p id="print-client-contact"></p>
+    </div>
+    <section class="print-event-grid">
+      <div><span>Event</span><strong id="print-event"></strong></div>
+      <div><span>Date & time</span><strong id="print-date-time"></strong></div>
+      <div><span>Location</span><strong id="print-location"></strong></div>
+      <div><span>Guests</span><strong id="print-guests"></strong></div>
+    </section>
+    <section class="print-section">
+      <h3>Proposed menu</h3>
+      <p id="print-menu" class="preserve-lines"></p>
+    </section>
+    <section class="print-section">
+      <h3>Investment</h3>
+      <table class="print-totals">
+        <tbody>
+          <tr><td id="print-food-description"></td><td id="print-food-subtotal"></td></tr>
+          <tr id="print-staffing-row"><td id="print-staffing-description"></td><td id="print-staffing-subtotal"></td></tr>
+          <tr id="print-additional-row"><td id="print-additional-description"></td><td id="print-additional-amount"></td></tr>
+          <tr class="print-grand-total"><td>Estimated total</td><td id="print-total"></td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section class="print-section">
+      <h3>Notes</h3>
+      <p id="print-client-notes" class="preserve-lines"></p>
+    </section>
+    <footer class="print-footer">
+      This proposal is subject to Chef Maria’s final menu review, availability, and confirmation. It is not a confirmed booking until accepted by Chef Maria.
+    </footer>
+  </section>
+
+  <script type="module" src="lead-manager.js"></script>
+</body>
+</html>
