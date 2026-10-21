@@ -38,3 +38,45 @@ test("AI proposal keeps customer guest count and filters invented dishes", async
     globalThis.fetch = previousFetch;
   }
 });
+
+async function proposalFor(serviceType, guestCount) {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({
+      menuItems: ["Chicken Piccata"],
+      additionalLabel: "Travel fee",
+      additionalAmount: 150,
+      warnings: []
+    }) } }]
+  }), { status: 200 });
+
+  try {
+    const db = { prepare: () => ({ bind: () => ({ first: async () => ({
+      id: 5, name: "Test Client", guest_count: guestCount, service_type: serviceType,
+      cuisine: "Italian", dietary_restrictions: ""
+    }) }) }) };
+    const response = await onRequestPost({
+      request: new Request("https://example.com/api/leads/5/agent", {
+        method: "POST", headers: { Authorization: `Bearer ${key}` }
+      }),
+      env: { LEAD_MANAGER_KEY: key, DB: db, OPENAI_API_KEY: "test-only" },
+      params: { id: "5" }
+    });
+    assert.equal(response.status, 200);
+    return (await response.json()).proposal;
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
+test("Cooking Class proposals never get an AI-added additional charge", async () => {
+  const proposal = await proposalFor("Cooking Class", "8 guests");
+  assert.equal(proposal.additionalLabel, "");
+  assert.equal(proposal.additionalAmount, 0);
+});
+
+test("other services still keep the additional charge", async () => {
+  const proposal = await proposalFor("Full-Service Catering", "20 guests");
+  assert.equal(proposal.additionalLabel, "Travel fee");
+  assert.equal(proposal.additionalAmount, 150);
+});
