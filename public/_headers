@@ -15,3 +15,8 @@
 /proposal-calculator.js
   Cache-Control: no-store
   X-Content-Type-Options: nosniff
+
+/*
+  Strict-Transport-Security: max-age=300
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'
