@@ -470,6 +470,11 @@ PASTA & RISOTTO
 • Rigatoni Brie with Mushrooms & Walnuts
 • Creamy Rigatoni with Speck & Zucchini
 • Risotto con Radicchio e Amarone
+• Linguine al Pesto
+• Bucatini Amatriciana
+• Linguine with Seafood
+• Linguine with Clam Sauce
+• Seafood Risotto
 
 MAIN COURSES
 • Chicken Marsala
@@ -483,6 +488,8 @@ MAIN COURSES
 • Veal Saltimbocca
 • Ossobuco
 • Broiled Lamb Chops
+• Veal Milanese
+• Veal Piccata
 
 FISH
 • Marinated Trout
@@ -511,6 +518,8 @@ DESSERTS
 • Nutella Pockets
 • Affogato al Caffè
 • Gelato with Warm Berries
+• Lava Cake with Gelato
+• Amaretto Ice Cream
 
 Please choose the dishes you'd like, or tell me "recommend a menu" and I'll help you build one.`
       });
@@ -754,11 +763,11 @@ Booking rules:
 - If the customer does not know what to choose for an ITALIAN menu, offer Chef Maria's approved Italian suggestions.
 - When recommending Italian dishes, use Chef Maria's approved menu rather than inventing dishes.
 - Approved appetizers: Bruschetta al Pomodoro, Caprese Salad, Eggplant Parmigiana, Arancini, Italian Charcuterie Board, Mini Quiches, Focaccia, Mini Pizzas, Polenta with Brie and Mushrooms, Seafood Salad, Caprese Kabobs.
-- Approved pasta and risotto: Lasagna Bolognese, White Vegetable Lasagna, Tagliatelle Bolognese, Penne alla Vodka, Fresh Gnocchi, Spinach Gnocchi Gorgonzola, Risotto Shrimp & Zucchini, Mushroom Risotto, Orzotto with Peas & Speck, Spaghetti Marinara, Spaghetti Carbonara, Squash Gnocchi, Tagliatelle al Pesto, Rigatoni Brie with Mushrooms & Walnuts, Creamy Rigatoni with Speck & Zucchini, Risotto con Radicchio e Amarone.
-- Approved main courses: Chicken Marsala, Chicken Piccata, Chicken Milanese, Chicken Limone, Chicken Cacciatore, Branzino Mediterraneo, Short Ribs with Polenta, Salmon Mediterranean Style, Veal Saltimbocca, Ossobuco, Broiled Lamb Chops.
+- Approved pasta and risotto: Lasagna Bolognese, White Vegetable Lasagna, Tagliatelle Bolognese, Penne alla Vodka, Fresh Gnocchi, Spinach Gnocchi Gorgonzola, Risotto Shrimp & Zucchini, Mushroom Risotto, Orzotto with Peas & Speck, Spaghetti Marinara, Spaghetti Carbonara, Squash Gnocchi, Tagliatelle al Pesto, Rigatoni Brie with Mushrooms & Walnuts, Creamy Rigatoni with Speck & Zucchini, Risotto con Radicchio e Amarone, Linguine al Pesto, Bucatini Amatriciana, Linguine with Seafood, Linguine with Clam Sauce, Seafood Risotto.
+- Approved main courses: Chicken Marsala, Chicken Piccata, Chicken Milanese, Chicken Limone, Chicken Cacciatore, Branzino Mediterraneo, Short Ribs with Polenta, Salmon Mediterranean Style, Veal Saltimbocca, Ossobuco, Broiled Lamb Chops, Veal Milanese, Veal Piccata.
 - Approved fish: Marinated Trout, Baked Snapper Mediterraneo, Whole Fish in Cartoccio, Branzino Oreganato.
 - Approved sides: Roasted Potatoes, Sautéed Spinach, Zucchini Trifolati, Broccoli au Gratin, Mixed Salad, Fennel Gratiné.
-- Approved desserts: Tiramisù, Mini Cannoli, Rustic Apple Cake, Semifreddo Amaretto, Mixed Berries with Zabaione, Cold Hazelnut Cake, Puff Pastry Apple Wheels, Fruit Tart or Marmalade Tart, Strudel di Mele, Nutella Pockets, Affogato al Caffè, Gelato with Warm Berries.
+- Approved desserts: Tiramisù, Mini Cannoli, Rustic Apple Cake, Semifreddo Amaretto, Mixed Berries with Zabaione, Cold Hazelnut Cake, Puff Pastry Apple Wheels, Fruit Tart or Marmalade Tart, Strudel di Mele, Nutella Pockets, Affogato al Caffè, Gelato with Warm Berries, Lava Cake with Gelato, Amaretto Ice Cream.
 - Do not continue to allergies until the customer has provided specific food choices or explicitly says Chef Maria may choose/recommend the menu.
 - Do not sound robotic.
 - If the customer gives several details at once, acknowledge them and ask only for what is still missing.
@@ -1470,7 +1479,16 @@ function extractBookingInfo(userMessage, history) {
     ["Strudel di Mele", /\bstrudel(?: di mele)?\b/i],
     ["Nutella Pockets", /\bnutella pockets?\b/i],
     ["Affogato al Caffè", /\baffogato(?: al caff(?:e|è))?\b/i],
-    ["Gelato with Warm Berries", /\bgelato with warm berries\b/i]
+    ["Gelato with Warm Berries", /\bgelato with warm berries\b/i],
+    ["Linguine al Pesto", /\blinguine al pesto\b/i],
+    ["Bucatini Amatriciana", /\bbucatini(?: amatriciana)?\b/i],
+    ["Linguine with Seafood", /\b(?:linguine with seafood|seafood linguine)\b/i],
+    ["Linguine with Clam Sauce", /\b(?:linguine with clam sauce|clam sauce linguine)\b/i],
+    ["Seafood Risotto", /\bseafood risotto\b/i],
+    ["Veal Milanese", /\bveal milanese\b/i],
+    ["Veal Piccata", /\bveal piccata\b/i],
+    ["Lava Cake with Gelato", /\blava cake\b/i],
+    ["Amaretto Ice Cream", /\bamaretto ice cream\b/i]
   ];
 
   const customerSelectedDishes =
