@@ -219,9 +219,12 @@ Please choose Full-Service Catering or Drop-off Catering.`
         lastAssistantMessage
       );
 
+    // Only treat the bot as "waiting for an email" when its last message is
+    // actually asking for one, not when it merely mentions the word
+    // ("Thank you for the email address..." or a recap listing "Email: ...").
     const wasAskedForEmail =
       !lastMessageIsServerResult &&
-      /email address|provide your email|your email/i.test(
+      /(?:\b(?:what|provide|enter|share|give|send|confirm|tell me|type|need)\b|\bmay i have\b|\bcan i (?:get|have)\b)[^.?!\n]*\be-?mail\b|\be-?mail\b[^.!\n]*\?/i.test(
         lastAssistantMessage
       );
 
@@ -922,7 +925,7 @@ function findAnswerAfterPrompt(history, promptPattern) {
     const assistantText = assistant?.content || "";
 
     const isSummary =
-      /summary|details so far|what we have so far|final summary|complete summary|confirm that everything|confirm if everything/i.test(
+      /summary|recap|details so far|details we have|what we have so far|we have so far|final summary|complete summary|confirm that everything|confirm if everything/i.test(
         assistantText
       );
 
@@ -1282,7 +1285,7 @@ function extractBookingInfo(userMessage, history) {
    */
   if (
     eventType &&
-    /^(private chef|chef|catering|full[- ]?service catering|drop[- ]?off catering|cooking class|miami|miami beach|fort lauderdale|boca raton|palm beach|west palm beach|pompano beach|deerfield beach|delray beach|italian|mexican|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean|\d+|\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})$/i.test(
+    /^(private chef|chef|catering|full[- ]?service catering|drop[- ]?off catering|cooking class|miami|miami beach|fort lauderdale|boca raton|palm beach|west palm beach|pompano beach|deerfield beach|delray beach|italian|mexican|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean|\d+|\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|[\d\s().+-]{7,})$/i.test(
       eventType.trim()
     )
   ) {
@@ -1648,6 +1651,12 @@ function extractBookingInfo(userMessage, history) {
     /^(yes|yeah|yep|ok|okay|ok that's good|okay that's good|thats good|that's good|sounds good|looks good|great|perfect|fine|correct)$/i.test(
       allergies.trim()
     )
+  ) {
+    allergies = "";
+  } else if (
+    // A phone number, a date or an email can never be an allergy answer.
+    /^[\d\s().+-]{7,}$/.test(allergies.trim()) ||
+    /@/.test(allergies)
   ) {
     allergies = "";
   }
