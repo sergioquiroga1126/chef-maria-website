@@ -294,7 +294,7 @@ Please choose Full-Service Catering or Drop-off Catering.`
     ) {
       return jsonResponse({
         answer:
-          "Please enter a valid 10-digit U.S. phone number, for example: 561-692-1473."
+          "Please enter a valid 10-digit U.S. phone number, for example: 561-555-0123."
       });
     }
 
