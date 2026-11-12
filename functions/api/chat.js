@@ -919,6 +919,12 @@ export async function onRequestOptions() {
   });
 }
 
+// True for a message that lists several "- Label: value" lines, such as a recap
+// ("So we have: - Guest count: 9 - Time: 7 PM ..."). Such a message is never a question.
+function looksLikeFieldList(text) {
+  return (String(text || "").match(/^\s*(?:[-•*]|\d+[.)])\s*[A-Za-z][A-Za-z /&]{2,40}:/gm) || []).length >= 3;
+}
+
 function findAnswerAfterPrompt(history, promptPattern) {
   let answer = "";
 
@@ -937,6 +943,7 @@ function findAnswerAfterPrompt(history, promptPattern) {
       assistant?.role === "assistant" &&
       user?.role === "user" &&
       !isSummary &&
+      !looksLikeFieldList(assistantText) &&
       promptPattern.test(assistantText)
     ) {
       const value = (user.content || "").trim();
@@ -992,7 +999,7 @@ function findTypedLocation(history, userMessage) {
 
     const prompt = assistant.content || "";
 
-    if (isSummaryMessage.test(prompt) || !asksForLocation.test(prompt)) {
+    if (isSummaryMessage.test(prompt) || looksLikeFieldList(prompt) || !asksForLocation.test(prompt)) {
       continue;
     }
 
@@ -1701,6 +1708,23 @@ function extractBookingInfo(userMessage, history) {
   ) {
     menuPreference =
       `Special ${cuisinePreference} cuisine request — customer asks Chef Maria to review whether she can accommodate it and choose the menu.`;
+  }
+
+
+  // For an Italian menu, "you choose" is a real answer. Without this, the reply to the
+  // NEXT question (for example "none" for allergies) could be saved as the menu.
+  const menuLooksEmpty =
+    !menuPreference.trim() ||
+    /^(none|no|nope|nothing|n\/a|na|yes|yeah|yep|ok|okay)$/i.test(menuPreference.trim());
+
+  if (
+    !specialCuisineReview &&
+    customerDelegatedSpecialMenu &&
+    !customerSelectedDishes.length &&
+    !assistantSelectedDishes.length &&
+    menuLooksEmpty
+  ) {
+    menuPreference = "Customer asked Chef Maria to choose the menu.";
   }
 
 
