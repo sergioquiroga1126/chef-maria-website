@@ -1544,6 +1544,22 @@ function extractBookingInfo(userMessage, history) {
     menuPreference = "";
   }
 
+  // If the customer answered several questions in one message, keep only the part about the
+  // menu. Anything from the first allergy, email, phone or "no" answer onward is dropped.
+  if (/@|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|allerg/i.test(menuPreference)) {
+    const keptParts = [];
+
+    for (const part of menuPreference.split(/[,;]+/)) {
+      if (/@|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|allerg|^\s*(?:no|none|nope)\b/i.test(part)) {
+        break;
+      }
+
+      keptParts.push(part.trim());
+    }
+
+    menuPreference = keptParts.join(", ");
+  }
+
   const approvedDishMatchers = [
     ["Bruschetta al Pomodoro", /\bbruschetta(?: al pomodoro)?\b/i],
     ["Caprese Salad", /\bcaprese(?: salad)?\b(?! kabobs?)/i],
@@ -1761,7 +1777,7 @@ function extractBookingInfo(userMessage, history) {
   // NEXT question (for example "none" for allergies) could be saved as the menu.
   const menuLooksEmpty =
     !menuPreference.trim() ||
-    /^(none|no|nope|nothing|n\/a|na|yes|yeah|yep|ok|okay)$/i.test(menuPreference.trim());
+    /^(none|no|nope|nothing|n\/a|na|yes|yeah|yep|ok|okay|you choose|you decide|chef maria can decide|chef maria may decide|choose for me|surprise me|whatever chef maria recommends)[.!\s]*$/i.test(menuPreference.trim());
 
   if (
     !specialCuisineReview &&
