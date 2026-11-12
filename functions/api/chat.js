@@ -971,6 +971,18 @@ function lastRequestSentence(text) {
   return asks.length ? asks[asks.length - 1] : "";
 }
 
+// A plain person's name: letters, spaces, apostrophes, hyphens, and a period only after an
+// initial ("J. Smith"). Digits, "@" and domains such as "yahoo.com" are not names, and
+// neither are answers like "yes" or "none".
+function isPlainName(value) {
+  const text = String(value || "").trim();
+
+  return (
+    /^[\p{L}](?:[\p{L} '’-]|\.(?=\s|$)){1,59}$/u.test(text) &&
+    !/^(?:yes|yeah|yep|no|nope|none|ok|okay|sure|thanks|thank you|correct|cancel|stop)$/i.test(text)
+  );
+}
+
 function findAnswerAfterPrompt(history, promptPattern) {
   let answer = "";
 
@@ -2021,19 +2033,22 @@ function extractBookingInfo(userMessage, history) {
   const lastAssistantForName =
     [...history].reverse().find((item) => item.role === "assistant")?.content || "";
 
+  // The bot is waiting for the name when its last request is about the name, or when no valid
+  // name has been recorded yet and its last message mentions one ("...I still need your name.
+  // Could you please provide it?").
+  const nameNotValidYet = !isPlainName(name);
+
   if (
     !looksLikeFieldList(lastAssistantForName) &&
-    /\bname\b/i.test(lastRequestSentence(lastAssistantForName))
+    (/\bname\b/i.test(lastRequestSentence(lastAssistantForName)) ||
+      (nameNotValidYet && /\bname\b/i.test(lastAssistantForName)))
   ) {
     const typedName = String(userMessage || "")
       .replace(/\s+/g, " ")
       .trim()
       .replace(/^(?:my name is|it is|it's|this is|i am|i'm)\s+/i, "");
 
-    if (
-      /^[\p{L}][\p{L} '’-]{1,59}$/u.test(typedName) &&
-      !/^(?:yes|yeah|yep|no|nope|none|ok|okay|sure|thanks|thank you|correct|cancel|stop)$/i.test(typedName)
-    ) {
+    if (isPlainName(typedName)) {
       name = typedName;
     }
   }
@@ -2052,6 +2067,11 @@ function extractBookingInfo(userMessage, history) {
 
   if (name && /[,;|@]/.test(name)) {
     name = name.split(/[,;|]/)[0].trim();
+  }
+
+  // Something that is not a plain name ("guests are 9", an email, a phone number) is not saved as the name.
+  if (name && !isPlainName(name)) {
+    name = "";
   }
 
 
