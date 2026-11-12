@@ -2000,6 +2000,28 @@ function extractBookingInfo(userMessage, history) {
       /provide.*name|your name\?|may i have your name|what is your name/i
     );
 
+  // findAnswerAfterPrompt only sees earlier turns. When the bot's last message asked for
+  // the name, the message being answered now IS the name, and the newest answer wins.
+  const lastAssistantForName =
+    [...history].reverse().find((item) => item.role === "assistant")?.content || "";
+
+  if (
+    !looksLikeFieldList(lastAssistantForName) &&
+    /\bname\b/i.test(lastRequestSentence(lastAssistantForName))
+  ) {
+    const typedName = String(userMessage || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:my name is|it is|it's|this is|i am|i'm)\s+/i, "");
+
+    if (
+      /^[\p{L}][\p{L} '’-]{1,59}$/u.test(typedName) &&
+      !/^(?:yes|yeah|yep|no|nope|none|ok|okay|sure|thanks|thank you|correct|cancel|stop)$/i.test(typedName)
+    ) {
+      name = typedName;
+    }
+  }
+
   if (!name) {
     const nameDirect =
       allUserText.match(
