@@ -224,7 +224,7 @@ Please choose Full-Service Catering or Drop-off Catering.`
     // ("Thank you for the email address..." or a recap listing "Email: ...").
     const wasAskedForEmail =
       !lastMessageIsServerResult &&
-      /(?:\b(?:what|provide|enter|share|give|send|confirm|tell me|type|need)\b|\bmay i have\b|\bcan i (?:get|have)\b)[^.?!\n]*\be-?mail\b|\be-?mail\b[^.!\n]*\?/i.test(
+      /(?:\b(?:what|provide|enter|share|give|send|confirm|tell me)\b|\bmay i have\b|\bcan i (?:get|have)\b)[^.?!\n]*\be-?mail\b|\be-?mail\b[^.!\n]*\?/i.test(
         lastAssistantMessage
       );
 
@@ -253,9 +253,11 @@ Please choose Full-Service Catering or Drop-off Catering.`
       });
     }
 
+    // Only treat the bot as "waiting for a phone number" when its last message
+    // actually asks for one, not when it mentions the word in a thank-you or recap.
     const wasAskedForPhone =
       !lastMessageIsServerResult &&
-      /phone number|best phone|telephone|number to reach you/i.test(
+      /(?:\b(?:what|provide|enter|share|give|send|confirm|tell me)\b|\bmay i have\b|\bcan i (?:get|have)\b)[^.?!\n]*\b(?:phone|telephone|number to reach you)\b|\b(?:phone|telephone)\b[^.!\n]*\?|\bvalid 10-digit\b/i.test(
         lastAssistantMessage
       );
 
@@ -271,7 +273,7 @@ Please choose Full-Service Catering or Drop-off Catering.`
 
     const currentPhoneMatch =
       userMessage.match(
-        /(?:\+?1[-.\s]?)?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})/
+        /(?<!\d)(?:\+?1[-.\s]?)?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})(?!\d)/
       );
 
     let currentPhoneIsValid = false;
@@ -870,7 +872,7 @@ Email: cucinadiverona@gmail.com`
 
       return jsonResponse({
         answer:
-          `Before I can show the final booking summary, I still need: ${missingFields.join(", ")}. Let's continue with ${firstMissing}.`
+          `Thanks! Just one more thing before I can show your booking summary.\n\n${nextQuestionFor(firstMissing)}`
       });
     }
 
@@ -946,6 +948,72 @@ function findAnswerAfterPrompt(history, promptPattern) {
   return answer;
 }
 
+
+// The question the bot should ask next, worded so the customer's answer is recognized.
+function nextQuestionFor(missingField) {
+  const questions = {
+    "guest count": "How many guests will be attending?",
+    "service type": "Which service would you like: Private Chef, Full-Service Catering, Drop-off Catering, or Cooking Class?",
+    "type of event": "What type of event is this? For example: birthday, anniversary, family dinner, corporate event, graduation, or wedding.",
+    "location": "In which city will the event take place?",
+    "date": "What date is the event?",
+    "time": "What time should the event start? Please include AM or PM.",
+    "menu selections": "What dishes would you like? You can also say \"Chef Maria can decide.\"",
+    "allergies or dietary restrictions": "Are there any allergies or dietary restrictions among the guests? You can say \"none\".",
+    "name": "Could you please provide your name?",
+    "email": "Could you please provide your email address?",
+    "phone": "Could you please provide your phone number?"
+  };
+
+  return questions[missingField] || "Could you share the remaining details so I can finish your inquiry?";
+}
+
+// The place of the event in the customer's own words, for towns the parser does
+// not already know. Only replies to a question about the city or location are used,
+// and characters that could break the email to Chef Maria are removed.
+function findTypedLocation(history, userMessage) {
+  const turns = [...history, { role: "user", content: userMessage }];
+  const asksForLocation =
+    /(?:\bcity\b|\blocation\b|\bwhere\b)[^.!\n]*\?|(?:provide|share|tell|confirm|enter|give)[^.?!\n]*(?:\bcity\b|\blocation\b)/i;
+  const isSummaryMessage =
+    /summary|recap|details so far|details we have|what we have so far|we have so far|final summary|complete summary|confirm that everything|confirm if everything/i;
+
+  let found = "";
+
+  for (let i = 0; i < turns.length - 1; i++) {
+    const assistant = turns[i];
+    const user = turns[i + 1];
+
+    if (assistant?.role !== "assistant" || user?.role !== "user") {
+      continue;
+    }
+
+    const prompt = assistant.content || "";
+
+    if (isSummaryMessage.test(prompt) || !asksForLocation.test(prompt)) {
+      continue;
+    }
+
+    const value = String(user.content || "")
+      .replace(/\s+/g, " ")
+      .replace(/[^\p{L}\p{N}\s,.'#\/-]/gu, "")
+      .trim();
+
+    const unusable =
+      value.length < 3 ||
+      value.length > 100 ||
+      /@/.test(value) ||
+      /^[\d\s().+\-\/,:]*$/.test(value) ||
+      /\b(?:am|pm)\b/i.test(value) ||
+      /^(?:yes|yeah|yep|no|nope|ok|okay|sure|thanks|thank you|correct|right|that's right|that is right)\b/i.test(value);
+
+    if (!unusable) {
+      found = value;
+    }
+  }
+
+  return found;
+}
 
 function extractBookingInfo(userMessage, history) {
   const userMessages = history
@@ -1349,6 +1417,11 @@ function extractBookingInfo(userMessage, history) {
 
   if (/^maimi$/i.test(cityLocation)) {
     cityLocation = "Miami";
+  }
+
+  // Any other town counts too. Chef Maria reads it exactly as the customer typed it.
+  if (!cityLocation) {
+    cityLocation = findTypedLocation(history, userMessage);
   }
 
 
