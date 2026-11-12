@@ -872,7 +872,9 @@ Email: cucinadiverona@gmail.com`
 
       return jsonResponse({
         answer:
-          `Thanks! Just one more thing before I can show your booking summary.\n\n${nextQuestionFor(firstMissing)}`
+          // Keep this wording free of "summary" and "recap": the code that records the
+          // customer's answers skips any message containing those words.
+          `Almost there!\n\n${nextQuestionFor(firstMissing)}`
       });
     }
 
