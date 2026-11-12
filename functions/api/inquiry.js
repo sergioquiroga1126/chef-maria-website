@@ -218,6 +218,13 @@ export async function onRequestPost({ request, env, waitUntil }) {
   const recipient =
     env.CHEF_MARIA_EMAIL || "cucinadiverona@gmail.com";
 
+  // Private chef service is limited to 10 guests. The inquiry is still accepted,
+  // but Chef Maria is told that the format needs her review.
+  const privateChefTooLarge = service === "Private Chef" && guestCount > 10;
+  const reviewNote = privateChefTooLarge
+    ? `\n\nREVIEW NEEDED: private chef service is limited to 10 guests, and this request is for ${guestCount}. The format needs your review.`
+    : "";
+
   const emailText = `
 NEW CHEF MARIA INQUIRY
 
@@ -228,7 +235,7 @@ Event date: ${date}
 Number of guests: ${guestCount}
 Service: ${service}
 Location: ${location}
-Dietary restrictions: ${dietary || "None provided"}
+Dietary restrictions: ${dietary || "None provided"}${reviewNote}
 
 Message:
 ${message || "No additional message"}
@@ -287,7 +294,7 @@ ${message || "No additional message"}
           "Chef Maria Website <bookings@mariaprivatechef.com>",
         to: [recipient],
         reply_to: email,
-        subject: `New Chef Maria inquiry from ${name}`,
+        subject: `New Chef Maria inquiry from ${name}${privateChefTooLarge ? " (private chef, over 10 guests)" : ""}`,
         text: emailText
       })
     }
