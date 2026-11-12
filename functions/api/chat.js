@@ -40,10 +40,14 @@ export async function onRequestPost(context) {
      * A customer may change the guest count after we have already
      * moved to the catering-choice question.
      */
+    // Only when the bot's last message is really asking about the guest count or the
+    // catering format. A recap that lists "Guest Count: 9" is not a question.
     const guestCountContext =
       /guest count|how many guests|number of guests|guests will be attending|full-service catering|full service catering|drop-off catering|drop off catering|catering format/i.test(
         lastAssistantBeforeBooking
-      );
+      ) &&
+      !looksLikeFieldList(lastAssistantBeforeBooking) &&
+      !/recap|so we have|details so far|details we have|we have so far/i.test(lastAssistantBeforeBooking);
 
     /*
      * Accept thousands separators such as "1,000" or "1 000 000",
@@ -61,8 +65,11 @@ export async function onRequestPost(context) {
           )
         : null;
 
+    // A bare number of seven or more digits is a phone number or similar, never a guest count.
     const bareGuestCountText =
-      correctedGuestCountMatch?.[1] || "";
+      (correctedGuestCountMatch?.[1] || "").replace(/\D/g, "").length >= 7
+        ? ""
+        : correctedGuestCountMatch?.[1] || "";
 
     const guestCountText =
       explicitGuestCountMatch?.[1] ||
@@ -224,8 +231,8 @@ Please choose Full-Service Catering or Drop-off Catering.`
     // ("Thank you for the email address..." or a recap listing "Email: ...").
     const wasAskedForEmail =
       !lastMessageIsServerResult &&
-      /(?:\b(?:what|provide|enter|share|give|send|confirm|tell me)\b|\bmay i have\b|\bcan i (?:get|have)\b)[^.?!\n]*\be-?mail\b|\be-?mail\b[^.!\n]*\?/i.test(
-        lastAssistantMessage
+      /\be-?mail\b/i.test(
+        lastRequestSentence(lastAssistantMessage)
       );
 
     const currentEmailMatch =
@@ -243,9 +250,21 @@ Please choose Full-Service Catering or Drop-off Catering.`
         userMessage
       );
 
+    // The bot sometimes repeats an email back ("...your email is a@b.com, correct?").
+    // A plain "yes" to that is a valid answer. The address itself comes from the
+    // customer's earlier message.
+    const confirmingShownEmail =
+      /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(
+        lastRequestSentence(lastAssistantMessage)
+      ) &&
+      /^(?:yes|yeah|yep|yup|correct|that's right|that is right|right|y)\b/i.test(
+        userMessage.trim()
+      );
+
     if (
       (wasAskedForEmail || emailCorrectionAttempt) &&
-      !currentEmailMatch
+      !currentEmailMatch &&
+      !confirmingShownEmail
     ) {
       return jsonResponse({
         answer:
@@ -257,9 +276,10 @@ Please choose Full-Service Catering or Drop-off Catering.`
     // actually asks for one, not when it mentions the word in a thank-you or recap.
     const wasAskedForPhone =
       !lastMessageIsServerResult &&
-      /(?:\b(?:what|provide|enter|share|give|send|confirm|tell me)\b|\bmay i have\b|\bcan i (?:get|have)\b)[^.?!\n]*\b(?:phone|telephone|number to reach you)\b|\b(?:phone|telephone)\b[^.!\n]*\?|\bvalid 10-digit\b/i.test(
-        lastAssistantMessage
-      );
+      (/\b(?:phone|telephone|number to reach you)\b/i.test(
+        lastRequestSentence(lastAssistantMessage)
+      ) ||
+        /\bvalid 10-digit\b/i.test(lastAssistantMessage));
 
     /*
      * Only treat a message as a phone correction when the customer
@@ -290,9 +310,19 @@ Please choose Full-Service Catering or Drop-off Catering.`
         !/^(\d)\1{9}$/.test(digits);
     }
 
+    // Same for a phone number the bot repeated back ("...your phone number is 954-909-9734, correct?").
+    const confirmingShownPhone =
+      /(?<!\d)\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}(?!\d)/.test(
+        lastRequestSentence(lastAssistantMessage)
+      ) &&
+      /^(?:yes|yeah|yep|yup|correct|that's right|that is right|right|y)\b/i.test(
+        userMessage.trim()
+      );
+
     if (
       (wasAskedForPhone || phoneCorrectionAttempt) &&
-      !currentPhoneIsValid
+      !currentPhoneIsValid &&
+      !confirmingShownPhone
     ) {
       return jsonResponse({
         answer:
@@ -923,6 +953,22 @@ export async function onRequestOptions() {
 // ("So we have: - Guest count: 9 - Time: 7 PM ..."). Such a message is never a question.
 function looksLikeFieldList(text) {
   return (String(text || "").match(/^\s*(?:[-•*]|\d+[.)])\s*[A-Za-z][A-Za-z /&]{2,40}:/gm) || []).length >= 3;
+}
+
+// The last sentence of a bot message that actually asks for something. A message such as
+// "I still need your name and to confirm your email. Could you please provide your name?"
+// is asking for the name, not the email.
+function lastRequestSentence(text) {
+  const sentences = String(text || "")
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  const asks = sentences.filter((sentence) =>
+    /\?|\b(?:please|provide|enter|share|give|send|tell me|confirm|what|may i have|can i (?:get|have))\b/i.test(sentence)
+  );
+
+  return asks.length ? asks[asks.length - 1] : "";
 }
 
 function findAnswerAfterPrompt(history, promptPattern) {
