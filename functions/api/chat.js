@@ -880,6 +880,13 @@ Email: cucinadiverona@gmail.com`
         aiAnswer
       );
 
+    // OVER10_SERVICE_STEER
+    if (guestsNow > 10 && guestsNow <= 100 && !bookingInfo.serviceType) {
+      return jsonResponse({
+        answer: `For ${guestsNow} guests, Chef Maria handles the event as catering rather than a standard private-chef dinner. Which would you prefer?\n\n1. Full-Service Catering\n2. Drop-off Catering`
+      });
+    }
+
     if (
       guestsNow >= 1 &&
       guestsNow <= 10 &&
@@ -928,7 +935,7 @@ Email: cucinadiverona@gmail.com`
         answer:
           // Keep this wording free of "summary" and "recap": the code that records the
           // customer's answers skips any message containing those words.
-          `Almost there!\n\n${nextQuestionFor(firstMissing)}`
+          `Almost there!\n\n${nextQuestionFor(firstMissing, Number.parseInt(bookingInfo.guests || "0", 10))}`
       });
     }
 
@@ -1071,10 +1078,12 @@ function findAnswerAfterPrompt(history, promptPattern) {
 
 
 // The question the bot should ask next, worded so the customer's answer is recognized.
-function nextQuestionFor(missingField) {
+function nextQuestionFor(missingField, guests = 0) {
   const questions = {
     "guest count": "How many guests will be attending?",
-    "service type": "Which service would you like: Private Chef, Full-Service Catering, Drop-off Catering, or Cooking Class?",
+    "service type": guests > 10
+      ? "Which service would you like: Full-Service Catering, Drop-off Catering, or Cooking Class?"
+      : "Which service would you like: Private Chef, Full-Service Catering, Drop-off Catering, or Cooking Class?",
     "type of event": "What type of event is this? For example: birthday, anniversary, family dinner, corporate event, graduation, or wedding.",
     "location": "In which city will the event take place?",
     "date": "What date is the event?",
@@ -1302,7 +1311,7 @@ function extractBookingInfo(userMessage, history) {
   let serviceType = "";
 
   const servicePattern =
-    /\b(private chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering|cataring|chef)\b/gi;
+    /\b(private chef|full[-\s]?service(?: catering)?|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering|cataring|chef)\b/gi;
 
   const serviceCandidates = [
     ...userMessages,
@@ -1324,7 +1333,7 @@ function extractBookingInfo(userMessage, history) {
       serviceType = "Private Chef";
     } else if (rawService === "catering" || rawService === "cataring") {
       serviceType = "Catering";
-    } else if (/full[-\s]?service catering/i.test(rawService)) {
+    } else if (/full[-\s]?service/i.test(rawService)) {
       serviceType = "Full-Service Catering";
     } else if (/drop[-\s]?off/i.test(rawService)) {
       serviceType = "Drop-off Catering";
