@@ -40,10 +40,14 @@ export async function onRequestPost(context) {
      * A customer may change the guest count after we have already
      * moved to the catering-choice question.
      */
+    // Only when the bot's last message is really asking about the guest count or the
+    // catering format. A recap that lists "Guest Count: 9" is not a question.
     const guestCountContext =
       /guest count|how many guests|number of guests|guests will be attending|full-service catering|full service catering|drop-off catering|drop off catering|catering format/i.test(
         lastAssistantBeforeBooking
-      );
+      ) &&
+      !looksLikeFieldList(lastAssistantBeforeBooking) &&
+      !/recap|so we have|details so far|details we have|we have so far/i.test(lastAssistantBeforeBooking);
 
     /*
      * Accept thousands separators such as "1,000" or "1 000 000",
@@ -61,8 +65,11 @@ export async function onRequestPost(context) {
           )
         : null;
 
+    // A bare number of seven or more digits is a phone number or similar, never a guest count.
     const bareGuestCountText =
-      correctedGuestCountMatch?.[1] || "";
+      (correctedGuestCountMatch?.[1] || "").replace(/\D/g, "").length >= 7
+        ? ""
+        : correctedGuestCountMatch?.[1] || "";
 
     const guestCountText =
       explicitGuestCountMatch?.[1] ||
@@ -219,10 +226,13 @@ Please choose Full-Service Catering or Drop-off Catering.`
         lastAssistantMessage
       );
 
+    // Only treat the bot as "waiting for an email" when its last message is
+    // actually asking for one, not when it merely mentions the word
+    // ("Thank you for the email address..." or a recap listing "Email: ...").
     const wasAskedForEmail =
       !lastMessageIsServerResult &&
-      /email address|provide your email|your email/i.test(
-        lastAssistantMessage
+      /\be-?mail\b/i.test(
+        lastRequestSentence(lastAssistantMessage)
       );
 
     const currentEmailMatch =
@@ -240,9 +250,21 @@ Please choose Full-Service Catering or Drop-off Catering.`
         userMessage
       );
 
+    // The bot sometimes repeats an email back ("...your email is a@b.com, correct?").
+    // A plain "yes" to that is a valid answer. The address itself comes from the
+    // customer's earlier message.
+    const confirmingShownEmail =
+      /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(
+        lastRequestSentence(lastAssistantMessage)
+      ) &&
+      /^(?:yes|yeah|yep|yup|correct|that's right|that is right|right|y)\b/i.test(
+        userMessage.trim()
+      );
+
     if (
       (wasAskedForEmail || emailCorrectionAttempt) &&
-      !currentEmailMatch
+      !currentEmailMatch &&
+      !confirmingShownEmail
     ) {
       return jsonResponse({
         answer:
@@ -250,11 +272,14 @@ Please choose Full-Service Catering or Drop-off Catering.`
       });
     }
 
+    // Only treat the bot as "waiting for a phone number" when its last message
+    // actually asks for one, not when it mentions the word in a thank-you or recap.
     const wasAskedForPhone =
       !lastMessageIsServerResult &&
-      /phone number|best phone|telephone|number to reach you/i.test(
-        lastAssistantMessage
-      );
+      (/\b(?:phone|telephone|number to reach you)\b/i.test(
+        lastRequestSentence(lastAssistantMessage)
+      ) ||
+        /\bvalid 10-digit\b/i.test(lastAssistantMessage));
 
     /*
      * Only treat a message as a phone correction when the customer
@@ -268,7 +293,7 @@ Please choose Full-Service Catering or Drop-off Catering.`
 
     const currentPhoneMatch =
       userMessage.match(
-        /(?:\+?1[-.\s]?)?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})/
+        /(?<!\d)(?:\+?1[-.\s]?)?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})(?!\d)/
       );
 
     let currentPhoneIsValid = false;
@@ -285,13 +310,23 @@ Please choose Full-Service Catering or Drop-off Catering.`
         !/^(\d)\1{9}$/.test(digits);
     }
 
+    // Same for a phone number the bot repeated back ("...your phone number is 954-909-9734, correct?").
+    const confirmingShownPhone =
+      /(?<!\d)\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}(?!\d)/.test(
+        lastRequestSentence(lastAssistantMessage)
+      ) &&
+      /^(?:yes|yeah|yep|yup|correct|that's right|that is right|right|y)\b/i.test(
+        userMessage.trim()
+      );
+
     if (
       (wasAskedForPhone || phoneCorrectionAttempt) &&
-      !currentPhoneIsValid
+      !currentPhoneIsValid &&
+      !confirmingShownPhone
     ) {
       return jsonResponse({
         answer:
-          "Please enter a valid 10-digit U.S. phone number, for example: 561-692-1473."
+          "Please enter a valid 10-digit U.S. phone number, for example: 561-555-0123."
       });
     }
 
@@ -867,7 +902,9 @@ Email: cucinadiverona@gmail.com`
 
       return jsonResponse({
         answer:
-          `Before I can show the final booking summary, I still need: ${missingFields.join(", ")}. Let's continue with ${firstMissing}.`
+          // Keep this wording free of "summary" and "recap": the code that records the
+          // customer's answers skips any message containing those words.
+          `Almost there!\n\n${nextQuestionFor(firstMissing)}`
       });
     }
 
@@ -912,6 +949,70 @@ export async function onRequestOptions() {
   });
 }
 
+// True for a message that lists several "- Label: value" lines, such as a recap
+// ("So we have: - Guest count: 9 - Time: 7 PM ..."). Such a message is never a question.
+function looksLikeFieldList(text) {
+  return (String(text || "").match(/^\s*(?:[-•*]|\d+[.)])\s*[A-Za-z][A-Za-z /&]{2,40}:/gm) || []).length >= 3;
+}
+
+// The last sentence of a bot message that actually asks for something. A message such as
+// "I still need your name and to confirm your email. Could you please provide your name?"
+// is asking for the name, not the email.
+function lastRequestSentence(text) {
+  const sentences = String(text || "")
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  const asks = sentences.filter((sentence) =>
+    /\?|\b(?:please|provide|enter|share|give|send|tell me|confirm|what|may i have|can i (?:get|have))\b/i.test(sentence)
+  );
+
+  return asks.length ? asks[asks.length - 1] : "";
+}
+
+// A plain person's name: letters, spaces, apostrophes, hyphens, and a period only after an
+// initial ("J. Smith"). Digits, "@" and domains such as "yahoo.com" are not names, and
+// neither are answers like "yes" or "none".
+function isPlainName(value) {
+  const text = String(value || "").trim();
+
+  return (
+    /^[\p{L}](?:[\p{L} '’-]|\.(?=\s|$)){1,59}$/u.test(text) &&
+    !/^(?:yes|yeah|yep|no|nope|none|ok|okay|sure|thanks|thank you|correct|cancel|stop)$/i.test(text)
+  );
+}
+
+// The newest plain-name reply to a bot message whose last request is about the name.
+// This also works when that message listed the customer's details above the question.
+function findNameAnswer(history) {
+  let found = "";
+
+  for (let i = 0; i < history.length - 1; i++) {
+    const assistant = history[i];
+    const user = history[i + 1];
+
+    if (assistant?.role !== "assistant" || user?.role !== "user") {
+      continue;
+    }
+
+    if (!/\bname\b/i.test(lastRequestSentence(assistant.content))) {
+      continue;
+    }
+
+    const typed = String(user.content || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:my name is|it is|it's|this is|i am|i'm)\s+/i, "");
+
+    if (isPlainName(typed)) {
+      found = typed;
+    }
+  }
+
+  return found;
+}
+
 function findAnswerAfterPrompt(history, promptPattern) {
   let answer = "";
 
@@ -922,7 +1023,7 @@ function findAnswerAfterPrompt(history, promptPattern) {
     const assistantText = assistant?.content || "";
 
     const isSummary =
-      /summary|details so far|what we have so far|final summary|complete summary|confirm that everything|confirm if everything/i.test(
+      /summary|recap|details so far|details we have|what we have so far|we have so far|final summary|complete summary|confirm that everything|confirm if everything/i.test(
         assistantText
       );
 
@@ -930,6 +1031,7 @@ function findAnswerAfterPrompt(history, promptPattern) {
       assistant?.role === "assistant" &&
       user?.role === "user" &&
       !isSummary &&
+      !looksLikeFieldList(assistantText) &&
       promptPattern.test(assistantText)
     ) {
       const value = (user.content || "").trim();
@@ -943,6 +1045,72 @@ function findAnswerAfterPrompt(history, promptPattern) {
   return answer;
 }
 
+
+// The question the bot should ask next, worded so the customer's answer is recognized.
+function nextQuestionFor(missingField) {
+  const questions = {
+    "guest count": "How many guests will be attending?",
+    "service type": "Which service would you like: Private Chef, Full-Service Catering, Drop-off Catering, or Cooking Class?",
+    "type of event": "What type of event is this? For example: birthday, anniversary, family dinner, corporate event, graduation, or wedding.",
+    "location": "In which city will the event take place?",
+    "date": "What date is the event?",
+    "time": "What time should the event start? Please include AM or PM.",
+    "menu selections": "What dishes would you like? You can also say \"Chef Maria can decide.\"",
+    "allergies or dietary restrictions": "Are there any allergies or dietary restrictions among the guests? You can say \"none\".",
+    "name": "Could you please provide your name?",
+    "email": "Could you please provide your email address?",
+    "phone": "Could you please provide your phone number?"
+  };
+
+  return questions[missingField] || "Could you share the remaining details so I can finish your inquiry?";
+}
+
+// The place of the event in the customer's own words, for towns the parser does
+// not already know. Only replies to a question about the city or location are used,
+// and characters that could break the email to Chef Maria are removed.
+function findTypedLocation(history, userMessage) {
+  const turns = [...history, { role: "user", content: userMessage }];
+  const asksForLocation =
+    /(?:\bcity\b|\blocation\b|\bwhere\b)[^.!\n]*\?|(?:provide|share|tell|confirm|enter|give)[^.?!\n]*(?:\bcity\b|\blocation\b)/i;
+  const isSummaryMessage =
+    /summary|recap|details so far|details we have|what we have so far|we have so far|final summary|complete summary|confirm that everything|confirm if everything/i;
+
+  let found = "";
+
+  for (let i = 0; i < turns.length - 1; i++) {
+    const assistant = turns[i];
+    const user = turns[i + 1];
+
+    if (assistant?.role !== "assistant" || user?.role !== "user") {
+      continue;
+    }
+
+    const prompt = assistant.content || "";
+
+    if (isSummaryMessage.test(prompt) || looksLikeFieldList(prompt) || !asksForLocation.test(prompt)) {
+      continue;
+    }
+
+    const value = String(user.content || "")
+      .replace(/\s+/g, " ")
+      .replace(/[^\p{L}\p{N}\s,.'#\/-]/gu, "")
+      .trim();
+
+    const unusable =
+      value.length < 3 ||
+      value.length > 100 ||
+      /@/.test(value) ||
+      /^[\d\s().+\-\/,:]*$/.test(value) ||
+      /\b(?:am|pm)\b/i.test(value) ||
+      /^(?:yes|yeah|yep|no|nope|ok|okay|sure|thanks|thank you|correct|right|that's right|that is right)\b/i.test(value);
+
+    if (!unusable) {
+      found = value;
+    }
+  }
+
+  return found;
+}
 
 function extractBookingInfo(userMessage, history) {
   const userMessages = history
@@ -1282,7 +1450,7 @@ function extractBookingInfo(userMessage, history) {
    */
   if (
     eventType &&
-    /^(private chef|chef|catering|full[- ]?service catering|drop[- ]?off catering|cooking class|miami|miami beach|fort lauderdale|boca raton|palm beach|west palm beach|pompano beach|deerfield beach|delray beach|italian|mexican|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean|\d+|\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})$/i.test(
+    /^(private chef|chef|catering|full[- ]?service catering|drop[- ]?off catering|cooking class|miami|miami beach|fort lauderdale|boca raton|palm beach|west palm beach|pompano beach|deerfield beach|delray beach|italian|mexican|mediterranean|american|french|spanish|greek|japanese|thai|indian|chinese|caribbean|\d+|\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|[\d\s().+-]{7,})$/i.test(
       eventType.trim()
     )
   ) {
@@ -1348,6 +1516,11 @@ function extractBookingInfo(userMessage, history) {
     cityLocation = "Miami";
   }
 
+  // Any other town counts too. Chef Maria reads it exactly as the customer typed it.
+  if (!cityLocation) {
+    cityLocation = findTypedLocation(history, userMessage);
+  }
+
 
   /*
    * DATE
@@ -1411,6 +1584,22 @@ function extractBookingInfo(userMessage, history) {
     )
   ) {
     menuPreference = "";
+  }
+
+  // If the customer answered several questions in one message, keep only the part about the
+  // menu. Anything from the first allergy, email, phone or "no" answer onward is dropped.
+  if (/@|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|allerg/i.test(menuPreference)) {
+    const keptParts = [];
+
+    for (const part of menuPreference.split(/[,;]+/)) {
+      if (/@|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|allerg|^\s*(?:no|none|nope)\b/i.test(part)) {
+        break;
+      }
+
+      keptParts.push(part.trim());
+    }
+
+    menuPreference = keptParts.join(", ");
   }
 
   const approvedDishMatchers = [
@@ -1626,6 +1815,23 @@ function extractBookingInfo(userMessage, history) {
   }
 
 
+  // For an Italian menu, "you choose" is a real answer. Without this, the reply to the
+  // NEXT question (for example "none" for allergies) could be saved as the menu.
+  const menuLooksEmpty =
+    !menuPreference.trim() ||
+    /^(none|no|nope|nothing|n\/a|na|yes|yeah|yep|ok|okay|you choose|you decide|chef maria can decide|chef maria may decide|choose for me|surprise me|whatever chef maria recommends)[.!\s]*$/i.test(menuPreference.trim());
+
+  if (
+    !specialCuisineReview &&
+    customerDelegatedSpecialMenu &&
+    !customerSelectedDishes.length &&
+    !assistantSelectedDishes.length &&
+    menuLooksEmpty
+  ) {
+    menuPreference = "Customer asked Chef Maria to choose the menu.";
+  }
+
+
   /*
    * ALLERGIES / DIETARY RESTRICTIONS
    *
@@ -1648,6 +1854,12 @@ function extractBookingInfo(userMessage, history) {
     /^(yes|yeah|yep|ok|okay|ok that's good|okay that's good|thats good|that's good|sounds good|looks good|great|perfect|fine|correct)$/i.test(
       allergies.trim()
     )
+  ) {
+    allergies = "";
+  } else if (
+    // A phone number, a date or an email can never be an allergy answer.
+    /^[\d\s().+-]{7,}$/.test(allergies.trim()) ||
+    /@/.test(allergies)
   ) {
     allergies = "";
   }
@@ -1846,6 +2058,40 @@ function extractBookingInfo(userMessage, history) {
       /provide.*name|your name\?|may i have your name|what is your name/i
     );
 
+  // The newest plain-name reply to a bot message whose last request is about the name wins,
+  // even when that message also listed the customer's details above the question.
+  const nameFromEarlierTurns = findNameAnswer(history);
+
+  if (nameFromEarlierTurns) {
+    name = nameFromEarlierTurns;
+  }
+
+  // findAnswerAfterPrompt only sees earlier turns. When the bot's last message asked for
+  // the name, the message being answered now IS the name, and the newest answer wins.
+  const lastAssistantForName =
+    [...history].reverse().find((item) => item.role === "assistant")?.content || "";
+
+  // The bot is waiting for the name when its last request is about the name, or when no valid
+  // name has been recorded yet and its last message mentions one ("...I still need your name.
+  // Could you please provide it?").
+  const nameNotValidYet = !isPlainName(name);
+
+  if (
+    /\bname\b/i.test(lastRequestSentence(lastAssistantForName)) ||
+    (nameNotValidYet &&
+      !looksLikeFieldList(lastAssistantForName) &&
+      /\bname\b/i.test(lastAssistantForName))
+  ) {
+    const typedName = String(userMessage || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:my name is|it is|it's|this is|i am|i'm)\s+/i, "");
+
+    if (isPlainName(typedName)) {
+      name = typedName;
+    }
+  }
+
   if (!name) {
     const nameDirect =
       allUserText.match(
@@ -1860,6 +2106,11 @@ function extractBookingInfo(userMessage, history) {
 
   if (name && /[,;|@]/.test(name)) {
     name = name.split(/[,;|]/)[0].trim();
+  }
+
+  // Something that is not a plain name ("guests are 9", an email, a phone number) is not saved as the name.
+  if (name && !isPlainName(name)) {
+    name = "";
   }
 
 
