@@ -983,6 +983,36 @@ function isPlainName(value) {
   );
 }
 
+// The newest plain-name reply to a bot message whose last request is about the name.
+// This also works when that message listed the customer's details above the question.
+function findNameAnswer(history) {
+  let found = "";
+
+  for (let i = 0; i < history.length - 1; i++) {
+    const assistant = history[i];
+    const user = history[i + 1];
+
+    if (assistant?.role !== "assistant" || user?.role !== "user") {
+      continue;
+    }
+
+    if (!/\bname\b/i.test(lastRequestSentence(assistant.content))) {
+      continue;
+    }
+
+    const typed = String(user.content || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:my name is|it is|it's|this is|i am|i'm)\s+/i, "");
+
+    if (isPlainName(typed)) {
+      found = typed;
+    }
+  }
+
+  return found;
+}
+
 function findAnswerAfterPrompt(history, promptPattern) {
   let answer = "";
 
@@ -2028,6 +2058,14 @@ function extractBookingInfo(userMessage, history) {
       /provide.*name|your name\?|may i have your name|what is your name/i
     );
 
+  // The newest plain-name reply to a bot message whose last request is about the name wins,
+  // even when that message also listed the customer's details above the question.
+  const nameFromEarlierTurns = findNameAnswer(history);
+
+  if (nameFromEarlierTurns) {
+    name = nameFromEarlierTurns;
+  }
+
   // findAnswerAfterPrompt only sees earlier turns. When the bot's last message asked for
   // the name, the message being answered now IS the name, and the newest answer wins.
   const lastAssistantForName =
@@ -2039,9 +2077,10 @@ function extractBookingInfo(userMessage, history) {
   const nameNotValidYet = !isPlainName(name);
 
   if (
-    !looksLikeFieldList(lastAssistantForName) &&
-    (/\bname\b/i.test(lastRequestSentence(lastAssistantForName)) ||
-      (nameNotValidYet && /\bname\b/i.test(lastAssistantForName)))
+    /\bname\b/i.test(lastRequestSentence(lastAssistantForName)) ||
+    (nameNotValidYet &&
+      !looksLikeFieldList(lastAssistantForName) &&
+      /\bname\b/i.test(lastAssistantForName))
   ) {
     const typedName = String(userMessage || "")
       .replace(/\s+/g, " ")
