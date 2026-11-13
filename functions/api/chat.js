@@ -869,6 +869,30 @@ Email: cucinadiverona@gmail.com`
     ).replace(/privatechefmaria\.com/gi, "mariaprivatechef.com");
 
     /*
+     * Private chef service covers 1 to 10 guests. The AI sometimes tells a small group that
+     * catering is required, or asks it to choose between Full-Service and Drop-off Catering.
+     * When the customer has not chosen a service, replace that with the right question.
+     */
+    const guestsNow = Number.parseInt(bookingInfo.guests || "0", 10);
+
+    const aiPushesCatering =
+      /(?:prefer|choose|would you like|which)[^.?!]*\b(?:full[- ]service|drop[- ]?off)\b|catering format|requires? (?:a )?catering|instead of (?:a )?(?:standard )?private[- ]chef/i.test(
+        aiAnswer
+      );
+
+    if (
+      guestsNow >= 1 &&
+      guestsNow <= 10 &&
+      !bookingInfo.serviceType &&
+      aiPushesCatering
+    ) {
+      return jsonResponse({
+        answer:
+          "Chef Maria's private chef service works for up to 10 guests. Which would you like: Private Chef or Catering?"
+      });
+    }
+
+    /*
      * Final summaries are controlled by the server.
      * Never allow the AI to show an incomplete summary.
      */
