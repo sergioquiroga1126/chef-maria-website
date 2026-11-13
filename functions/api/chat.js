@@ -1668,7 +1668,7 @@ function extractBookingInfo(userMessage, history) {
     ["Zucchini Trifolati", /\bzucchini trifolati\b/i],
     ["Broccoli au Gratin", /\bbroccoli au gratin\b/i],
 
-    ["Tiramisù", /\btiramis(?:u|ù)\b/i],
+    ["Tiramisù", /\btiramis(?:u|ù)(?![\p{L}])/iu],
     ["Mini Cannoli", /\bmini cannoli\b/i],
     ["Rustic Apple Cake", /\brustic apple cake\b/i],
     ["Semifreddo Amaretto", /\bsemifreddo amaretto\b/i],
