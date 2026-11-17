@@ -1,27 +1,27 @@
 export const PROPOSAL_PRICING_GUIDANCE = {
   "Private Chef": {
-    minimum: 65,
-    maximum: 75,
-    suggested: 65,
-    description: "$65 per guest is the standard starting point; use $75 when the menu includes an appetizer and dessert."
+    minimum: 95,
+    maximum: null,
+    suggested: 95,
+    description: "$95 per guest is the starting price. Veal, fish and seafood menus cost more, and Chef Maria sets that price herself. For more than 8 guests she brings a server at $30 an hour plus tip."
   },
   "Full-Service Catering": {
-    minimum: 55,
+    minimum: null,
     maximum: null,
-    suggested: 55,
-    description: "Large-group food pricing typically starts near $55 per guest. Add service staff separately."
+    suggested: null,
+    description: "Catering pricing depends on what the customer orders. Chef Maria quotes it. Add service staff separately."
   },
   "Drop-off Catering": {
-    minimum: 35,
-    maximum: 50,
-    suggested: 45,
-    description: "Drop-off service typically ranges from $35 to $50 per guest, depending on the menu."
+    minimum: null,
+    maximum: null,
+    suggested: null,
+    description: "Drop-off pricing depends on what the customer orders. Chef Maria quotes it."
   },
   "Cooking Class": {
-    minimum: 75,
+    minimum: null,
     maximum: null,
-    suggested: 75,
-    description: "Enter a custom per-person rate after Chef Maria reviews the class format and menu."
+    suggested: null,
+    description: "Chef Maria quotes a per-person rate after she reviews the class format and menu."
   }
 };
 
@@ -88,9 +88,20 @@ export function calculateProposalTotals(input = {}) {
 
 export function pricingGuidanceFor(serviceType) {
   return PROPOSAL_PRICING_GUIDANCE[serviceType] || {
-    minimum: 75,
+    minimum: null,
     maximum: null,
-    suggested: 75,
+    suggested: null,
     description: "Enter a custom rate after Chef Maria reviews the inquiry."
   };
+}
+
+// Chef Maria's deposit note. The amount changes (usually $100, sometimes more),
+// so the sentence carries a blank she fills in before sending.
+export const DEPOSIT_NOTE_TEXT =
+  "A deposit of $_ reserves your event and is non-refundable. The balance is due at the end of the event.";
+
+// True while a blank amount such as $___ or [amount] is still in the text.
+export function hasUnfilledPlaceholder(text) {
+  // Catches "$_", "$___", "[amount]" and a leftover underscore beside a number such as "$200_" or "$_100".
+  return /\$\s*_|\$\s*[\d,.]+\s*_|\[\s*amount\s*\]/i.test(String(text || ""));
 }
