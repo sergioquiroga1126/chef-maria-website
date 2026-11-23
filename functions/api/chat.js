@@ -103,6 +103,22 @@ export async function onRequestPost(context) {
     const guestCount =
       Number.parseInt(bookingInfo.guests || "0", 10);
 
+    // CLASS_CAP_EARLY: cooking classes are limited to 12 guests. Checked on the
+    // customer's own words too, so it applies from the very first message.
+    const classAsked =
+      bookingInfo.serviceType === "Cooking Class" ||
+      /\b(?:cooking|pasta)\s+class(?:es)?\b/i.test(userMessage);
+    const classGuestsAsked = Math.max(
+      guestCount,
+      Number.parseInt(guestCountDigits || "0", 10)
+    );
+
+    if (classAsked && classGuestsAsked > 12 && classGuestsAsked <= 100) {
+      return jsonResponse({
+        answer: `I'm sorry, Chef Maria's cooking classes are limited to 12 guests, so she isn't able to host a class for ${classGuestsAsked} guests. If you can bring the group down to 12 or fewer, I'd be happy to continue with your booking.`
+      });
+    }
+
     if (
       guestCount > 10 &&
       bookingInfo.serviceType === "Private Chef"
