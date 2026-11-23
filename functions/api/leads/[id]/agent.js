@@ -3,8 +3,11 @@ import {
   isLeadManagerAuthorized,
   jsonResponse
 } from "../../../_shared/leads.js";
-import { pricingGuidanceFor } from "../../../../proposal-calculator.js";
-import { APPROVED_MENU_ITEMS as APPROVED_MENU } from "../../../_shared/chef-maria-knowledge.js";
+import { pricingGuidanceFor } from "../../../../public/proposal-calculator.js";
+import {
+  APPROVED_MENU_ITEMS as APPROVED_MENU,
+  COOKING_CLASS_MAX_GUESTS
+} from "../../../_shared/chef-maria-knowledge.js";
 
 function parseLeadId(params) {
   const id = Number.parseInt(String(params.id || ""), 10);
@@ -145,6 +148,7 @@ Business rules:
 - Full-Service Catering pricing depends on what the customer orders. Set pricePerGuest to 0 and let Chef Maria quote it. Service staff are separate, use a four-hour minimum at $30/hour per server.
 - Drop-off Catering pricing depends on what the customer orders. Set pricePerGuest to 0 and let Chef Maria quote it.
 - Cooking Class pricing depends on the class format, menu, and event requirements. Set pricePerGuest to 0 and let Chef Maria quote it.
+- Cooking Class is for 1-12 guests only. Chef Maria cannot host a class for more than 12 guests. For a larger group, set pricePerGuest to 0, suggest no menu, and flag it for her personal review.
 - Never invent an additional charge. Always return an empty additionalLabel and 0 additionalAmount. Only Chef Maria may manually add a legitimate extra charge.
 - Chef Maria specializes in Italian cuisine. For non-Italian cuisine, do not invent a menu; flag it for personal review.
 - Use only the approved menu items supplied below when suggesting dishes.
@@ -243,10 +247,11 @@ Return ONLY a JSON object with these keys:
 
     if (lead.service_type === "Cooking Class") {
       warnings.unshift("Cooking class pricing requires Chef Maria review.");
-    }
 
-    if (lead.service_type === "Cooking Class") {
-      warnings.unshift("Cooking class pricing requires Chef Maria review.");
+      if ((Number(lead.guest_count) || 0) > COOKING_CLASS_MAX_GUESTS) {
+        proposal.menu = "";
+        warnings.unshift(`Cooking classes are limited to ${COOKING_CLASS_MAX_GUESTS} guests. Chef Maria cannot host this class for ${lead.guest_count} guests.`);
+      }
     }
 
     return jsonResponse({
