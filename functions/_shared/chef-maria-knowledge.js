@@ -179,3 +179,6 @@ Promises you must never make:
 Contact details to give when needed:
 Phone: ${CONTACT_PHONE}
 Email: ${CONTACT_EMAIL}`;
+
+// Chef Maria cannot host a cooking class for more than this many guests.
+export const COOKING_CLASS_MAX_GUESTS = 12;
