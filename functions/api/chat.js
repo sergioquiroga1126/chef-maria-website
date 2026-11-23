@@ -103,6 +103,22 @@ export async function onRequestPost(context) {
     const guestCount =
       Number.parseInt(bookingInfo.guests || "0", 10);
 
+    // CLASS_CAP_EARLY: cooking classes are limited to 12 guests. Checked on the
+    // customer's own words too, so it applies from the very first message.
+    const classAsked =
+      bookingInfo.serviceType === "Cooking Class" ||
+      /\b(?:cooking|pasta)\s+class(?:es)?\b/i.test(userMessage);
+    const classGuestsAsked = Math.max(
+      guestCount,
+      Number.parseInt(guestCountDigits || "0", 10)
+    );
+
+    if (classAsked && classGuestsAsked > 12 && classGuestsAsked <= 100) {
+      return jsonResponse({
+        answer: `I'm sorry, Chef Maria's cooking classes are limited to 12 guests, so she isn't able to host a class for ${classGuestsAsked} guests. If you can bring the group down to 12 or fewer, I'd be happy to continue with your booking.`
+      });
+    }
+
     if (
       guestCount > 10 &&
       bookingInfo.serviceType === "Private Chef"
@@ -811,6 +827,7 @@ Booking rules:
 - Never describe an unusually large guest count as automatically acceptable or realistic.
 - Events with more than 100 guests require direct Chef Maria review and must not continue through automated booking.
 - Standard private-chef service is for up to 10 guests.
+- Cooking classes are limited to 12 guests. If the customer wants a class for more than 12 guests, say Chef Maria cannot host it and do not collect booking details.
 - For more than 10 guests, do NOT accept the event as a standard private-chef booking.
 - Explain that the event requires a catering format and may require additional service staff.
 - Ask whether the customer prefers Full-Service Catering or Drop-off Catering.
@@ -869,6 +886,44 @@ Email: cucinadiverona@gmail.com`
     ).replace(/privatechefmaria\.com/gi, "mariaprivatechef.com");
 
     /*
+     * Private chef service covers 1 to 10 guests. The AI sometimes tells a small group that
+     * catering is required, or asks it to choose between Full-Service and Drop-off Catering.
+     * When the customer has not chosen a service, replace that with the right question.
+     */
+    const guestsNow = Number.parseInt(bookingInfo.guests || "0", 10);
+
+    const aiPushesCatering =
+      /(?:prefer|choose|would you like|which)[^.?!]*\b(?:full[- ]service|drop[- ]?off)\b|catering format|requires? (?:a )?catering|instead of (?:a )?(?:standard )?private[- ]chef/i.test(
+        aiAnswer
+      );
+
+    // CLASS_CAP_STEER
+    if (bookingInfo.serviceType === "Cooking Class" && guestsNow > 12 && guestsNow <= 100) {
+      return jsonResponse({
+        answer: `I'm sorry, Chef Maria's cooking classes are limited to 12 guests, so she isn't able to host a class for ${guestsNow} guests. If you can bring the group down to 12 or fewer, I'd be happy to continue with your booking.`
+      });
+    }
+
+    // OVER10_SERVICE_STEER
+    if (guestsNow > 10 && guestsNow <= 100 && !bookingInfo.serviceType) {
+      return jsonResponse({
+        answer: `For ${guestsNow} guests, Chef Maria handles the event as catering rather than a standard private-chef dinner. Which would you prefer?\n\n1. Full-Service Catering\n2. Drop-off Catering`
+      });
+    }
+
+    if (
+      guestsNow >= 1 &&
+      guestsNow <= 10 &&
+      !bookingInfo.serviceType &&
+      aiPushesCatering
+    ) {
+      return jsonResponse({
+        answer:
+          "Chef Maria's private chef service works for up to 10 guests. Which would you like: Private Chef or Catering?"
+      });
+    }
+
+    /*
      * Final summaries are controlled by the server.
      * Never allow the AI to show an incomplete summary.
      */
@@ -904,7 +959,7 @@ Email: cucinadiverona@gmail.com`
         answer:
           // Keep this wording free of "summary" and "recap": the code that records the
           // customer's answers skips any message containing those words.
-          `Almost there!\n\n${nextQuestionFor(firstMissing)}`
+          `Almost there!\n\n${nextQuestionFor(firstMissing, Number.parseInt(bookingInfo.guests || "0", 10))}`
       });
     }
 
@@ -1047,10 +1102,12 @@ function findAnswerAfterPrompt(history, promptPattern) {
 
 
 // The question the bot should ask next, worded so the customer's answer is recognized.
-function nextQuestionFor(missingField) {
+function nextQuestionFor(missingField, guests = 0) {
   const questions = {
     "guest count": "How many guests will be attending?",
-    "service type": "Which service would you like: Private Chef, Full-Service Catering, Drop-off Catering, or Cooking Class?",
+    "service type": guests > 10
+      ? "Which service would you like: Full-Service Catering, Drop-off Catering, or Cooking Class?"
+      : "Which service would you like: Private Chef, Full-Service Catering, Drop-off Catering, or Cooking Class?",
     "type of event": "What type of event is this? For example: birthday, anniversary, family dinner, corporate event, graduation, or wedding.",
     "location": "In which city will the event take place?",
     "date": "What date is the event?",
@@ -1278,7 +1335,7 @@ function extractBookingInfo(userMessage, history) {
   let serviceType = "";
 
   const servicePattern =
-    /\b(private chef|full[-\s]?service catering|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering|cataring|chef)\b/gi;
+    /\b(private chef|full[-\s]?service(?: catering)?|drop[-\s]?off catering|drop[-\s]?off|cooking class|catering|cataring|chef)\b/gi;
 
   const serviceCandidates = [
     ...userMessages,
@@ -1300,7 +1357,7 @@ function extractBookingInfo(userMessage, history) {
       serviceType = "Private Chef";
     } else if (rawService === "catering" || rawService === "cataring") {
       serviceType = "Catering";
-    } else if (/full[-\s]?service catering/i.test(rawService)) {
+    } else if (/full[-\s]?service/i.test(rawService)) {
       serviceType = "Full-Service Catering";
     } else if (/drop[-\s]?off/i.test(rawService)) {
       serviceType = "Drop-off Catering";
@@ -1635,7 +1692,7 @@ function extractBookingInfo(userMessage, history) {
     ["Zucchini Trifolati", /\bzucchini trifolati\b/i],
     ["Broccoli au Gratin", /\bbroccoli au gratin\b/i],
 
-    ["Tiramisù", /\btiramis(?:u|ù)\b/i],
+    ["Tiramisù", /\btiramis(?:u|ù)(?![\p{L}])/iu],
     ["Mini Cannoli", /\bmini cannoli\b/i],
     ["Rustic Apple Cake", /\brustic apple cake\b/i],
     ["Semifreddo Amaretto", /\bsemifreddo amaretto\b/i],
