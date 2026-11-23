@@ -811,7 +811,7 @@ Booking rules:
 - Never describe an unusually large guest count as automatically acceptable or realistic.
 - Events with more than 100 guests require direct Chef Maria review and must not continue through automated booking.
 - Standard private-chef service is for up to 10 guests.
-- For more than 10 guests, do NOT accept the event as a standard private-chef booking.
+- Cooking classes are limited to 12 guests. If the customer wants a class for more than 12 guests, say Chef Maria cannot host it and do not collect booking details.\n- For more than 10 guests, do NOT accept the event as a standard private-chef booking.
 - Explain that the event requires a catering format and may require additional service staff.
 - Ask whether the customer prefers Full-Service Catering or Drop-off Catering.
 - Chef Maria will personally review the final event setup.
@@ -879,6 +879,13 @@ Email: cucinadiverona@gmail.com`
       /(?:prefer|choose|would you like|which)[^.?!]*\b(?:full[- ]service|drop[- ]?off)\b|catering format|requires? (?:a )?catering|instead of (?:a )?(?:standard )?private[- ]chef/i.test(
         aiAnswer
       );
+
+    // CLASS_CAP_STEER
+    if (bookingInfo.serviceType === "Cooking Class" && guestsNow > 12 && guestsNow <= 100) {
+      return jsonResponse({
+        answer: `I'm sorry, Chef Maria's cooking classes are limited to 12 guests, so she isn't able to host a class for ${guestsNow} guests. If you can bring the group down to 12 or fewer, I'd be happy to continue with your booking.`
+      });
+    }
 
     // OVER10_SERVICE_STEER
     if (guestsNow > 10 && guestsNow <= 100 && !bookingInfo.serviceType) {
